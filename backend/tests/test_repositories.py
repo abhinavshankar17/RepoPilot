@@ -5,13 +5,14 @@ client = TestClient(app)
 
 
 def test_create_repository_success():
-    payload = {"url": "https://github.com/octocat/Hello-World", "branch": "main"}
+    payload = {"url": "https://github.com/octocat/Hello-World"}
     response = client.post("/repositories", json=payload)
     assert response.status_code == 201
     data = response.json()
     assert "id" in data
     assert data["name"] == "Hello-World"
     assert data["status"] == "completed"
+    assert data["file_count"] >= 1
 
 
 def test_create_repository_invalid_url():
