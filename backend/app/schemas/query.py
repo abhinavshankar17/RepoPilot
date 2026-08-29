@@ -3,10 +3,14 @@ from pydantic import BaseModel, Field
 
 
 class Citation(BaseModel):
+    chunk_id: str = Field(..., description="Unique chunk identifier")
     file_path: str = Field(..., description="Relative path of the source file")
-    start_line: int = Field(..., description="Start line number")
-    end_line: int = Field(..., description="End line number")
-    snippet: str = Field(..., description="Code snippet snippet content")
+    symbol: Optional[str] = Field(default=None, description="Extracted symbol name or section heading")
+    start_line: int = Field(..., ge=1, description="1-indexed start line number")
+    end_line: int = Field(..., ge=1, description="1-indexed end line number")
+    language: str = Field(..., description="Source code language name")
+    score: float = Field(..., description="Vector search relevance similarity score")
+    snippet: str = Field(..., description="Code snippet content")
 
 
 class QueryRequest(BaseModel):

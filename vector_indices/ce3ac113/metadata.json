@@ -1,0 +1,16 @@
+[
+  {
+    "chunk_id": "README:block:1-1:1-1",
+    "repository_id": "ce3ac113",
+    "file_path": "README",
+    "language": "Documentation",
+    "symbol_type": "block",
+    "symbol_name": "block:1-1",
+    "parent_symbol": null,
+    "start_line": 1,
+    "end_line": 1,
+    "content": "Hello World!",
+    "imports": [],
+    "metadata": {}
+  }
+]

@@ -1,5 +1,6 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.schemas.repository import RepositoryCreate, RepositoryResponse, RepositoryListResponse
+from app.schemas.repository import RepositoryCreate, RepositoryResponse, RepositoryListResponse, FileContentResponse
 from app.schemas.chunk import ChunkInspectResponse
 from app.services.repository_service import RepositoryService, get_repository_service
 
@@ -69,3 +70,24 @@ async def inspect_repository_chunks(
         total_chunks=len(chunks),
         chunks=chunks
     )
+
+
+@router.get("/{repository_id}/files/{file_path:path}", response_model=FileContentResponse, status_code=status.HTTP_200_OK)
+async def get_repository_file(
+    repository_id: str,
+    file_path: str,
+    start_line: Optional[int] = None,
+    end_line: Optional[int] = None,
+    repo_service: RepositoryService = Depends(get_repository_service)
+):
+    """Safely retrieves repository source code content with optional line range slicing."""
+    try:
+        return repo_service.get_repository_file_content(repository_id, file_path, start_line, end_line)
+    except KeyError as k_err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(k_err))
+    except FileNotFoundError as fnf_err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(fnf_err))
+    except PermissionError as perm_err:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(perm_err))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to read file: {str(e)}")

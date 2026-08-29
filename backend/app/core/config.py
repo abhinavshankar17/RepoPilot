@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     LLM_PROVIDER: str = "mock"
     LLM_MODEL_NAME: str = "gpt-4o-mini"
+    LLM_TEMPERATURE: float = 0.0
+    LLM_MAX_TOKENS: int = 1024
     OPENAI_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
 

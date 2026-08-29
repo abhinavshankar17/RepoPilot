@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.query import QueryRequest, QueryResponse
-from app.services.query_service import QueryService, get_query_service
+from app.services.rag_service import RAGService, get_rag_service
 
 router = APIRouter(prefix="/repositories", tags=["Query"])
 
@@ -9,11 +9,11 @@ router = APIRouter(prefix="/repositories", tags=["Query"])
 async def query_repository(
     repository_id: str,
     payload: QueryRequest,
-    q_service: QueryService = Depends(get_query_service)
+    rag_svc: RAGService = Depends(get_rag_service)
 ):
-    """Executes a natural language query against a specific repository."""
+    """Executes a grounded RAG query against an ingested repository using FAISS retrieval and LLM completion."""
     try:
-        return q_service.process_query(repository_id, payload)
+        return rag_svc.answer_question(repository_id, payload.query, top_k=payload.top_k)
     except KeyError as key_err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -22,5 +22,5 @@ async def query_repository(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query execution failed: {str(e)}"
+            detail=f"RAG query execution failed: {str(e)}"
         )

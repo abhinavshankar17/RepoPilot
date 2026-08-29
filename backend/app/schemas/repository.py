@@ -25,3 +25,12 @@ class RepositoryResponse(BaseModel):
 class RepositoryListResponse(BaseModel):
     total: int
     repositories: List[RepositoryResponse]
+
+
+class FileContentResponse(BaseModel):
+    repository_id: str
+    file_path: str
+    start_line: int
+    end_line: int
+    total_lines: int
+    content: str
