@@ -14,6 +14,7 @@ from app.schemas.chunk import CodeChunk
 from app.services.parser_service import get_parser_service
 from app.services.chunker_service import get_chunker_service
 from app.services.vector_store import get_vector_store_service
+from app.services.graph_service import get_graph_service
 
 
 class LanguageDetector:
@@ -249,6 +250,10 @@ class IngestionService:
             # Generate embeddings and store in FAISS vector store
             vector_store = get_vector_store_service()
             vector_store.index_repository(repo_id, all_chunks)
+
+            # Build and store relationship graph
+            graph_svc = get_graph_service()
+            graph_svc.build_and_store_graph(repo_id, all_chunks)
 
             response = RepositoryResponse(
                 id=repo_id,

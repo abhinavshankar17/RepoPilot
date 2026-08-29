@@ -8,16 +8,20 @@ from app.services.rag_service import RAGService
 from app.core.logging import logger
 
 
+from app.services.graph_service import GraphService, get_graph_service
+
 class CodeFlowService:
     """Service analyzing architectural execution flows (Route -> Controller -> Service -> Repository -> Database)."""
 
     def __init__(
         self,
         repo_service: Optional[RepositoryService] = None,
-        hybrid_retriever: Optional[HybridRetriever] = None
+        hybrid_retriever: Optional[HybridRetriever] = None,
+        graph_service: Optional[GraphService] = None
     ):
         self.repo_service = repo_service or get_repository_service()
         self.hybrid_retriever = hybrid_retriever or get_hybrid_retriever()
+        self.graph_svc = graph_service or get_graph_service()
 
     def analyze_code_flow(self, repo_id: str, request: CodeFlowRequest) -> CodeFlowResponse:
         repo = self.repo_service.get_repository_by_id(repo_id)
@@ -26,17 +30,18 @@ class CodeFlowService:
 
         logger.info(f"Analyzing Code Flow for repo_id='{repo_id}', query='{request.query}'")
 
-        # 1. Retrieve relevant code chunks
+        # 1. Retrieve relevant code chunks (Vector evidence)
         search_query = request.endpoint_or_symbol or request.query
         retrieved_tuples = self.hybrid_retriever.retrieve(repo_id, search_query, top_k=request.top_k, strategy="hybrid_rerank")
         chunks_with_scores = [(c, diag.get("reranker_score", 0.0)) for c, diag in retrieved_tuples]
-
         citations = RAGService.map_sources(chunks_with_scores)
 
-        # 2. Build flow steps from retrieved chunks
-        steps: List[CodeFlowStep] = []
-        layers_seen = set()
+        # 2. Query Relationship Graph (Graph evidence)
+        graph_edges = self.graph_svc.trace_call_chain(repo_id, search_query)
+        graph_evidence = [f"{e.source_id} --[{e.relation_type}]--> {e.target_id}" for e in graph_edges]
 
+        # 3. Build flow steps
+        steps: List[CodeFlowStep] = []
         for idx, (chunk, score) in enumerate(chunks_with_scores, start=1):
             file_lower = chunk.file_path.lower()
             symbol_lower = chunk.symbol_name.lower()
@@ -52,31 +57,19 @@ class CodeFlowService:
             else:
                 layer = "Service"
 
-            layers_seen.add(layer)
             steps.append(CodeFlowStep(
                 step_number=idx,
                 layer=layer,
-                description=f"Execution in {chunk.file_path} (lines {chunk.start_line}-{chunk.end_line}) handling symbol '{chunk.symbol_name}'",
+                description=f"[Vector & Graph Evidence] Execution in {chunk.file_path} (L{chunk.start_line}-L{chunk.end_line}) handling '{chunk.symbol_name}'",
                 file_path=chunk.file_path,
                 start_line=chunk.start_line,
                 end_line=chunk.end_line,
                 symbol=chunk.symbol_name
             ))
 
-        # Always append Database layer if db is referenced
-        if "Repository" in layers_seen or any("db" in c.file_path.lower() for c, _ in chunks_with_scores):
-            steps.append(CodeFlowStep(
-                step_number=len(steps) + 1,
-                layer="Database",
-                description="Persists or queries database storage layer.",
-                file_path=steps[-1].file_path if steps else "database",
-                start_line=1,
-                end_line=1,
-                symbol="DB_Engine"
-            ))
-
-        # 3. Build ASCII flow diagram
         flow_diagram = "Route → Controller → Service → Repository → Database"
+        if graph_evidence:
+            flow_diagram += f"\n\nRelationship Graph Call Chain:\n" + "\n".join(graph_evidence[:5])
 
         return CodeFlowResponse(
             repository_id=repo_id,
