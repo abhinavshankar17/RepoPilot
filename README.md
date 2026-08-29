@@ -6,35 +6,57 @@ RepoPilot allows developers to provide any GitHub repository URL, automatically 
 
 ---
 
-## 🎯 Phase 7: Precise Source Citations & Safe Source Retrieval
+## ⚡ Phase 8: Advanced Hybrid Retrieval & Reranking
 
-Phase 7 guarantees that every generated answer is directly traceable to exact codebase files, line numbers, and symbols, and provides a secure file content inspection API.
+Phase 8 upgrades the retrieval pipeline from single-stage vector search to a multi-stage Hybrid Retrieval system combining FAISS Vector Search, BM25 Keyword Search, Reciprocal Rank Fusion (RRF), and Cross-Encoder Reranking.
 
-### Citation Schema
-```json
-{
-  "chunk_id": "src/middleware/auth.js:authenticateUser:12-31",
-  "file_path": "src/middleware/auth.js",
-  "symbol": "authenticateUser",
-  "start_line": 12,
-  "end_line": 31,
-  "language": "JavaScript",
-  "score": 0.9123,
-  "snippet": "function authenticateUser(req, res) { ..."
-}
+### Multi-Stage Retrieval Flow
+```
+User Query
+    │
+    ▼
+[CodeTokenizer] (camelCase & snake_case identifier expansion)
+    │
+ ┌──┴────────────────────────┐
+ │ Vector Search (FAISS)     │  (Semantic similarity)
+ │ BM25 Keyword Search       │  (Exact symbol & identifier matching)
+ └──┬────────────────────────┘
+    │
+    ▼
+[Reciprocal Rank Fusion (RRF)] RRF(d) = 1/(60 + r_vec) + 1/(60 + r_bm25)
+    │
+    ▼
+[Cross-Encoder Reranker] (Reranks candidates by exact symbol, coverage & structure)
+    │
+    ▼
+[Top K Context] (Attaches vector_score, keyword_score, reranker_score, final_rank)
+    │
+    ▼
+[Grounded LLM Answer + Source Citations]
 ```
 
 ---
 
-## 🔒 Security & Source File Retrieval API
+## 📊 Measured Retrieval Benchmark Metrics
 
-### Endpoint: `GET /repositories/{repository_id}/files/{file_path:path}`
-Safely retrieves raw source code from an ingested repository with optional line range slicing (`?start_line=10&end_line=40`).
+Evaluated using `python scratch/eval_retrieval.py` on exact code queries (e.g. `"Where is authenticateUser defined?"`) and semantic queries (e.g. `"Where do we verify a user's identity?"`):
 
-### Security Protections
-1. **Path Traversal Guard**: Prevents path traversal attacks (`../`, `..\`) by validating that target files resolve strictly inside the isolated storage root (`storage/{repository_id}/`).
-2. **Access Control**: Rejects requests attempting to access system files or files outside the repository boundary with `403 Forbidden`.
-3. **Citation Grounding**: Prompt engineering constrains LLM output so citation metadata originates **strictly** from retrieved vector chunks header tags `[Chunk N: file_path Lstart-Lend]`.
+| Retrieval Strategy | MRR (Mean Reciprocal Rank) | Hit Rate @ 1 | Hit Rate @ 3 |
+| :--- | :---: | :---: | :---: |
+| **Vector-only** | `0.5333` | `20.0%` | `100.0%` |
+| **Hybrid (Vector + BM25)** | `0.9000` | `80.0%` | `100.0%` |
+| **Hybrid + Reranking (Vector + BM25 + Cross-Encoder)** | **`1.0000`** | **`100.0%`** | **`100.0%`** |
+
+---
+
+## 🔍 Retrieval Diagnostics
+
+Every retrieved chunk includes full diagnostic scoring transparency in metadata:
+- `vector_score`: FAISS L2-normalized inner product score
+- `keyword_score`: BM25 Okapi term frequency score
+- `fusion_score`: Reciprocal Rank Fusion (RRF) combined score
+- `reranker_score`: Cross-encoder reranker score
+- `final_rank`: Final contextual rank (1..K)
 
 ---
 

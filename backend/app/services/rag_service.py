@@ -3,12 +3,13 @@ from app.schemas.chunk import CodeChunk
 from app.schemas.query import Citation, QueryResponse
 from app.services.repository_service import RepositoryService, get_repository_service
 from app.services.vector_store import VectorStoreService, get_vector_store_service
+from app.retrieval.hybrid_retriever import HybridRetriever, get_hybrid_retriever
 from app.services.llm_service import BaseLLMProvider, get_llm_provider
 from app.core.logging import logger
 
 
 class RAGService:
-    """Service orchestrating context retrieval, prompt construction, LLM generation, and precise source mapping."""
+    """Service orchestrating hybrid context retrieval, prompt construction, LLM generation, and precise source mapping."""
 
     SYSTEM_PROMPT = (
         "You are RepoPilot, an expert AI assistant specializing in analyzing codebase repositories.\n"
@@ -27,10 +28,12 @@ class RAGService:
         self,
         repo_service: Optional[RepositoryService] = None,
         vector_store_svc: Optional[VectorStoreService] = None,
+        hybrid_retriever: Optional[HybridRetriever] = None,
         llm_provider: Optional[BaseLLMProvider] = None
     ):
         self.repo_service = repo_service or get_repository_service()
         self.vector_store_svc = vector_store_svc or get_vector_store_service()
+        self.hybrid_retriever = hybrid_retriever or get_hybrid_retriever()
         self.llm_provider = llm_provider or get_llm_provider()
 
     @classmethod
@@ -83,14 +86,17 @@ class RAGService:
         return sources
 
     def answer_question(self, repo_id: str, query: str, top_k: int = 5) -> QueryResponse:
-        """Executes full RAG generation pipeline with precise source citation mapping."""
+        """Executes full RAG generation pipeline with hybrid retrieval and cross-encoder reranking."""
         repo = self.repo_service.get_repository_by_id(repo_id)
         if not repo:
             raise KeyError(f"Repository with ID '{repo_id}' not found.")
 
         logger.info(f"Executing RAG pipeline for repo_id='{repo_id}', query='{query}'")
 
-        chunks_with_scores = self.vector_store_svc.search(repo_id, query, top_k=top_k)
+        # Advanced hybrid retrieval (Vector + BM25 + RRF + Reranking)
+        retrieved_tuples = self.hybrid_retriever.retrieve(repo_id, query, top_k=top_k, strategy="hybrid_rerank")
+        chunks_with_scores = [(chunk, diag.get("reranker_score", diag.get("vector_score", 0.0))) for chunk, diag in retrieved_tuples]
+
         context_str = self.build_context_string(chunks_with_scores)
         user_prompt = self.build_user_prompt(query, context_str)
 
