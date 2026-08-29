@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Code2, Layers, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, Code2, Layers, ChevronRight } from 'lucide-react';
 import { Citation, FileContentResponse } from '../types';
 import { getFileContent } from '../services/api';
+import { CodeViewer } from './CodeViewer';
 
 interface SourceInspectorPanelProps {
   repositoryId: string | null;
@@ -25,8 +26,6 @@ export const SourceInspectorPanel: React.FC<SourceInspectorPanelProps> = ({
 
   // Load file content when a file or citation is selected
   const activePath = selectedCitation?.file_path || selectedFilePath;
-  const highlightStart = selectedCitation?.start_line || 1;
-  const highlightEnd = selectedCitation?.end_line || 1;
 
   useEffect(() => {
     if (!repositoryId || !activePath) {
@@ -138,54 +137,15 @@ export const SourceInspectorPanel: React.FC<SourceInspectorPanelProps> = ({
 
       {/* Tab 2: Code Inspector */}
       {activeTab === 'inspector' && (
-        <div className="flex-1 overflow-y-auto flex flex-col">
-          {!activePath ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500 text-xs">
-              <Code2 className="w-8 h-8 mb-2 text-slate-700 stroke-[1.5]" />
-              <p>No file selected for inspection.</p>
-              <p className="text-[11px] text-slate-600 mt-1">Select a file from File Explorer or click a Citation card.</p>
-            </div>
-          ) : loadingFile ? (
-            <div className="flex-1 flex items-center justify-center text-xs text-slate-400">
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-400 mr-2" />
-              <span>Fetching source content...</span>
-            </div>
-          ) : fileError ? (
-            <div className="p-4 text-xs text-rose-300 flex items-center space-x-2 bg-rose-500/10 m-3 rounded-lg border border-rose-500/30">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{fileError}</span>
-            </div>
-          ) : fileContent ? (
-            <div className="flex-1 flex flex-col h-full">
-              {/* File Sub-header */}
-              <div className="p-2.5 bg-slate-950 border-b border-slate-800 text-[11px] flex items-center justify-between font-mono">
-                <span className="text-slate-200 truncate">{fileContent.file_path}</span>
-                <span className="text-slate-500">{fileContent.total_lines} lines</span>
-              </div>
-
-              {/* Code Content Line Viewer */}
-              <div className="flex-1 overflow-auto bg-slate-950 p-2 font-mono text-[11px] leading-relaxed">
-                {fileContent.content.split('\n').map((line, idx) => {
-                  const lineNum = idx + 1;
-                  const isHighlighted = lineNum >= highlightStart && lineNum <= highlightEnd;
-                  return (
-                    <div
-                      key={lineNum}
-                      className={`flex items-start px-1.5 py-0.5 rounded ${
-                        isHighlighted ? 'bg-indigo-600/30 text-indigo-100 border-l-2 border-indigo-400' : 'text-slate-300'
-                      }`}
-                    >
-                      <span className="w-8 text-right pr-3 select-none text-slate-600 shrink-0 text-[10px]">
-                        {lineNum}
-                      </span>
-                      <pre className="whitespace-pre overflow-x-auto">{line || ' '}</pre>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <CodeViewer
+          fileData={fileContent}
+          language={selectedCitation?.language}
+          symbol={selectedCitation?.symbol}
+          startLine={selectedCitation?.start_line}
+          endLine={selectedCitation?.end_line}
+          loading={loadingFile}
+          error={fileError}
+        />
       )}
     </aside>
   );
