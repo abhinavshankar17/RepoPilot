@@ -44,7 +44,7 @@ export const AnswerView: React.FC<AnswerViewProps> = ({ queryResponse, loading, 
           Question asked:
         </div>
         <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
-          {queryResponse.query}
+          {queryResponse.original_query}
         </div>
       </div>
 

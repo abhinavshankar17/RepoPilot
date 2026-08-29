@@ -1,103 +1,156 @@
 import React, { useState, useEffect } from 'react';
-import { Compass } from 'lucide-react';
-import { RepoInput } from './components/RepoInput';
-import { QueryBox } from './components/QueryBox';
-import { AnswerView } from './components/AnswerView';
-import { checkHealth, createRepository, queryRepository } from './services/api';
-import { RepositoryResponse, QueryResponse } from './types';
-import './App.css';
+import { Header } from './components/Header';
+import { FileExplorer } from './components/FileExplorer';
+import { ChatPanel } from './components/ChatPanel';
+import { SourceInspectorPanel } from './components/SourceInspectorPanel';
+import { IngestModal } from './components/IngestModal';
+import { RepositoryResponse, ChatMessage, Citation } from './types';
+import { listRepositories, queryRepository, checkHealth } from './services/api';
 
 export const App: React.FC = () => {
-  const [health, setHealth] = useState<string>('checking');
-  const [currentRepo, setCurrentRepo] = useState<RepositoryResponse | null>(null);
-  const [ingestLoading, setIngestLoading] = useState<boolean>(false);
-  const [ingestError, setIngestError] = useState<string | null>(null);
+  const [repositories, setRepositories] = useState<RepositoryResponse[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState<RepositoryResponse | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState(false);
 
-  const [queryResponse, setQueryResponse] = useState<QueryResponse | null>(null);
-  const [queryLoading, setQueryLoading] = useState<boolean>(false);
-  const [queryError, setQueryError] = useState<string | null>(null);
-
+  // Initial load: Fetch repositories list & health
   useEffect(() => {
-    checkHealth()
-      .then((res) => setHealth(res.status))
-      .catch(() => setHealth('offline'));
+    const init = async () => {
+      try {
+        await checkHealth();
+        const res = await listRepositories();
+        setRepositories(res.repositories);
+        if (res.repositories.length > 0) {
+          setSelectedRepo(res.repositories[0]);
+        }
+      } catch (err: any) {
+        console.error('Initial repository fetch failed:', err);
+      }
+    };
+    init();
   }, []);
 
-  const handleIngest = async (repoUrl: string, branch?: string) => {
-    setIngestLoading(true);
-    setIngestError(null);
-    setQueryResponse(null);
+  const handleRepoSuccess = (repo: RepositoryResponse) => {
+    setRepositories((prev) => [repo, ...prev.filter((r) => r.id !== repo.id)]);
+    setSelectedRepo(repo);
+    setMessages([]);
+    setCitations([]);
+    setSelectedCitation(null);
+    setSessionId(undefined);
+  };
+
+  const handleSendMessage = async (queryText: string) => {
+    if (!selectedRepo) {
+      setError('Please select or ingest a repository first.');
+      return;
+    }
+
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: queryText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+    setError(null);
+
     try {
-      const result = await createRepository({ url: repoUrl, branch });
-      setCurrentRepo(result);
+      const response = await queryRepository(selectedRepo.id, {
+        query: queryText,
+        session_id: sessionId,
+        top_k: 5,
+      });
+
+      setSessionId(response.session_id);
+      setCitations(response.citations);
+
+      const assistantMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        role: 'assistant',
+        originalQuery: response.original_query,
+        rewrittenQuery: response.rewritten_query,
+        content: response.answer,
+        citations: response.citations,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setIngestError(err.message || 'Failed to register repository');
+      setError(err.message || 'RAG query processing failed.');
     } finally {
-      setIngestLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleQuery = async (query: string) => {
-    if (!currentRepo) return;
-    setQueryLoading(true);
-    setQueryError(null);
-    try {
-      const result = await queryRepository(currentRepo.id, { query });
-      setQueryResponse(result);
-    } catch (err: any) {
-      setQueryError(err.message || 'Failed to execute query');
-    } finally {
-      setQueryLoading(false);
-    }
+  const handleSelectCitation = (citation: Citation) => {
+    setSelectedCitation(citation);
+    setSelectedFilePath(citation.file_path);
+  };
+
+  const handleSelectFile = (filePath: string) => {
+    setSelectedFilePath(filePath);
+    setSelectedCitation(null);
   };
 
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="brand">
-          <div className="brand-icon">
-            <Compass size={22} />
-          </div>
-          <div>
-            <div className="brand-title gradient-text">RepoPilot</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Developer Documentation & Codebase Copilot (Phase 1 Backend Foundation)
-            </div>
-          </div>
-        </div>
+    <div className="h-screen w-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden">
+      {/* Top Navigation Header */}
+      <Header
+        repositories={repositories}
+        selectedRepo={selectedRepo}
+        onSelectRepo={(repo) => {
+          setSelectedRepo(repo);
+          setMessages([]);
+          setCitations([]);
+          setSelectedCitation(null);
+          setSelectedFilePath(null);
+          setSessionId(undefined);
+        }}
+        onOpenIngestModal={() => setIsIngestModalOpen(true)}
+      />
 
-        <div className="status-badge">
-          <div className="status-dot" style={{ background: health === 'ok' ? 'var(--success)' : 'var(--warning)' }} />
-          <span>Backend {health === 'ok' ? 'Online' : health}</span>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-        <RepoInput
-          onIngest={handleIngest}
-          ingestData={currentRepo}
-          loading={ingestLoading}
-          error={ingestError}
+      {/* 3-Panel Developer Tool Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel: File Explorer */}
+        <FileExplorer
+          repository={selectedRepo}
+          selectedFilePath={selectedFilePath}
+          onSelectFile={handleSelectFile}
         />
 
-        <QueryBox
-          onQuery={handleQuery}
-          loading={queryLoading}
-          disabled={!currentRepo}
+        {/* Center Panel: AI Chat */}
+        <ChatPanel
+          messages={messages}
+          loading={loading}
+          error={error}
+          onSendMessage={handleSendMessage}
+          onSelectCitation={handleSelectCitation}
         />
 
-        <AnswerView
-          queryResponse={queryResponse}
-          loading={queryLoading}
-          error={queryError}
+        {/* Right Panel: Source Citations & Code Inspector */}
+        <SourceInspectorPanel
+          repositoryId={selectedRepo?.id || null}
+          citations={citations}
+          selectedCitation={selectedCitation}
+          onSelectCitation={handleSelectCitation}
+          selectedFilePath={selectedFilePath}
         />
-      </main>
+      </div>
 
-      <footer style={{ marginTop: 'auto', paddingTop: '2rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        RepoPilot Phase 1 Backend Foundation • Pydantic v2 • Clean Architecture
-      </footer>
+      {/* Ingest Repository Modal */}
+      <IngestModal
+        isOpen={isIngestModalOpen}
+        onClose={() => setIsIngestModalOpen(false)}
+        onSuccess={handleRepoSuccess}
+      />
     </div>
   );
 };

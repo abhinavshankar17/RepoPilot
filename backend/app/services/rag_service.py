@@ -4,12 +4,14 @@ from app.schemas.query import Citation, QueryResponse
 from app.services.repository_service import RepositoryService, get_repository_service
 from app.services.vector_store import VectorStoreService, get_vector_store_service
 from app.retrieval.hybrid_retriever import HybridRetriever, get_hybrid_retriever
+from app.retrieval.query_rewriter import QueryRewriter, get_query_rewriter
+from app.services.session_service import SessionService, get_session_service
 from app.services.llm_service import BaseLLMProvider, get_llm_provider
 from app.core.logging import logger
 
 
 class RAGService:
-    """Service orchestrating hybrid context retrieval, prompt construction, LLM generation, and precise source mapping."""
+    """Service orchestrating session management, query rewriting, hybrid context retrieval, LLM generation, and source mapping."""
 
     SYSTEM_PROMPT = (
         "You are RepoPilot, an expert AI assistant specializing in analyzing codebase repositories.\n"
@@ -29,11 +31,15 @@ class RAGService:
         repo_service: Optional[RepositoryService] = None,
         vector_store_svc: Optional[VectorStoreService] = None,
         hybrid_retriever: Optional[HybridRetriever] = None,
+        query_rewriter: Optional[QueryRewriter] = None,
+        session_service: Optional[SessionService] = None,
         llm_provider: Optional[BaseLLMProvider] = None
     ):
         self.repo_service = repo_service or get_repository_service()
         self.vector_store_svc = vector_store_svc or get_vector_store_service()
         self.hybrid_retriever = hybrid_retriever or get_hybrid_retriever()
+        self.query_rewriter = query_rewriter or get_query_rewriter()
+        self.session_svc = session_service or get_session_service()
         self.llm_provider = llm_provider or get_llm_provider()
 
     @classmethod
@@ -85,21 +91,35 @@ class RAGService:
             ))
         return sources
 
-    def answer_question(self, repo_id: str, query: str, top_k: int = 5) -> QueryResponse:
-        """Executes full RAG generation pipeline with hybrid retrieval and cross-encoder reranking."""
+    def answer_question(
+        self,
+        repo_id: str,
+        query: str,
+        session_id: Optional[str] = None,
+        top_k: int = 5
+    ) -> QueryResponse:
+        """Executes RAG generation pipeline with session history resolution and query rewriting."""
         repo = self.repo_service.get_repository_by_id(repo_id)
         if not repo:
             raise KeyError(f"Repository with ID '{repo_id}' not found.")
 
-        logger.info(f"Executing RAG pipeline for repo_id='{repo_id}', query='{query}'")
+        # 1. Manage session ID and retrieve bounded history
+        active_session_id = self.session_svc.get_or_create_session_id(session_id)
+        history = self.session_svc.get_recent_history(active_session_id)
 
-        # Advanced hybrid retrieval (Vector + BM25 + RRF + Reranking)
-        retrieved_tuples = self.hybrid_retriever.retrieve(repo_id, query, top_k=top_k, strategy="hybrid_rerank")
+        # 2. Rewrite query if follow-up
+        rewritten_q = self.query_rewriter.rewrite_query(query, history)
+        logger.info(f"RAG query processing: repo_id='{repo_id}', session_id='{active_session_id}', original='{query}', rewritten='{rewritten_q}'")
+
+        # 3. Perform hybrid retrieval using rewritten_query
+        retrieved_tuples = self.hybrid_retriever.retrieve(repo_id, rewritten_q, top_k=top_k, strategy="hybrid_rerank")
         chunks_with_scores = [(chunk, diag.get("reranker_score", diag.get("vector_score", 0.0))) for chunk, diag in retrieved_tuples]
 
+        # 4. Build context string and user prompt
         context_str = self.build_context_string(chunks_with_scores)
-        user_prompt = self.build_user_prompt(query, context_str)
+        user_prompt = self.build_user_prompt(rewritten_q, context_str)
 
+        # 5. Generate LLM completion or insufficient context fallback
         if not chunks_with_scores:
             answer = "The provided repository context does not contain sufficient information to answer your question."
             sources = []
@@ -107,9 +127,14 @@ class RAGService:
             answer = self.llm_provider.generate(user_prompt, system_prompt=self.SYSTEM_PROMPT)
             sources = self.map_sources(chunks_with_scores)
 
+        # 6. Save turn to session history
+        self.session_svc.add_turn(active_session_id, query, answer)
+
         return QueryResponse(
             repository_id=repo_id,
-            query=query,
+            session_id=active_session_id,
+            original_query=query,
+            rewritten_query=rewritten_q,
             answer=answer,
             citations=sources
         )

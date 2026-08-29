@@ -6,80 +6,86 @@ RepoPilot allows developers to provide any GitHub repository URL, automatically 
 
 ---
 
-## ⚡ Phase 8: Advanced Hybrid Retrieval & Reranking
+## 🖥️ Phase 10: React Developer Interface
 
-Phase 8 upgrades the retrieval pipeline from single-stage vector search to a multi-stage Hybrid Retrieval system combining FAISS Vector Search, BM25 Keyword Search, Reciprocal Rank Fusion (RRF), and Cross-Encoder Reranking.
+Phase 10 delivers a 3-panel developer-tool UI tailored for code navigation, natural language codebase exploration, and source citation verification.
 
-### Multi-Stage Retrieval Flow
 ```
-User Query
-    │
-    ▼
-[CodeTokenizer] (camelCase & snake_case identifier expansion)
-    │
- ┌──┴────────────────────────┐
- │ Vector Search (FAISS)     │  (Semantic similarity)
- │ BM25 Keyword Search       │  (Exact symbol & identifier matching)
- └──┬────────────────────────┘
-    │
-    ▼
-[Reciprocal Rank Fusion (RRF)] RRF(d) = 1/(60 + r_vec) + 1/(60 + r_bm25)
-    │
-    ▼
-[Cross-Encoder Reranker] (Reranks candidates by exact symbol, coverage & structure)
-    │
-    ▼
-[Top K Context] (Attaches vector_score, keyword_score, reranker_score, final_rank)
-    │
-    ▼
-[Grounded LLM Answer + Source Citations]
+┌──────────────────────────────────────────────────────────┐
+│ RepoPilot                         Repository: project ▼ │
+├──────────────┬─────────────────────────┬─────────────────┤
+│              │                         │                 │
+│ File Explorer│       AI Chat           │    Sources      │
+│              │                         │                 │
+│ src/         │ User:                  │ auth.js         │
+│ ├── api      │ How does auth work?    │ Lines 12–31     │
+│ ├── models   │                         │                 │
+│ ├── routes   │ AI response...         │ routes.js       │
+│ └── services │                         │ Lines 44–57     │
+│              │                         │                 │
+└──────────────┴─────────────────────────┴─────────────────┘
 ```
 
----
-
-## 📊 Measured Retrieval Benchmark Metrics
-
-Evaluated using `python scratch/eval_retrieval.py` on exact code queries (e.g. `"Where is authenticateUser defined?"`) and semantic queries (e.g. `"Where do we verify a user's identity?"`):
-
-| Retrieval Strategy | MRR (Mean Reciprocal Rank) | Hit Rate @ 1 | Hit Rate @ 3 |
-| :--- | :---: | :---: | :---: |
-| **Vector-only** | `0.5333` | `20.0%` | `100.0%` |
-| **Hybrid (Vector + BM25)** | `0.9000` | `80.0%` | `100.0%` |
-| **Hybrid + Reranking (Vector + BM25 + Cross-Encoder)** | **`1.0000`** | **`100.0%`** | **`100.0%`** |
-
----
-
-## 🔍 Retrieval Diagnostics
-
-Every retrieved chunk includes full diagnostic scoring transparency in metadata:
-- `vector_score`: FAISS L2-normalized inner product score
-- `keyword_score`: BM25 Okapi term frequency score
-- `fusion_score`: Reciprocal Rank Fusion (RRF) combined score
-- `reranker_score`: Cross-encoder reranker score
-- `final_rank`: Final contextual rank (1..K)
+### UI Features
+1. **Header Bar**: Brand title, active repository dropdown selector, repository ingestion modal trigger, and API status indicator.
+2. **Left Panel (File Explorer)**: Browses repository files with filter search, language badges, and direct selection.
+3. **Center Panel (AI Chat)**:
+   - Natural language codebase Q&A.
+   - Multi-turn conversation history with session memory (`session_id`).
+   - Markdown rendering (`react-markdown`) and code syntax formatting.
+   - Context-resolved query rewriting indicator badge.
+   - Suggested developer question shortcuts.
+4. **Right Panel (Sources & Code Inspector)**:
+   - **Tab 1 (Citations)**: Clickable source citation cards (`file_path`, `symbol`, `start_line`, `end_line`, `score`, `snippet`).
+   - **Tab 2 (Code Inspector)**: Raw source code viewer fetched from backend (`GET /repositories/{id}/files/{file_path}`) with line range highlighting.
 
 ---
 
-## 🧪 Running Unit Tests
+## 🛠️ Architecture Overview
 
+```
+React 18 + TypeScript + Vite
+        │ (fetch API via src/services/api.ts)
+        ▼
+FastAPI Backend (app/main.py)
+        │
+        ├── Ingestion & Scanning (app/services/ingestion_service.py)
+        ├── Code AST Parsers (app/parsers/)
+        ├── Code-Aware Chunker (app/services/chunker_service.py)
+        ├── FAISS Vector Store & Embeddings (app/services/vector_store.py)
+        ├── Hybrid Retriever & Cross-Encoder Reranker (app/retrieval/)
+        └── Grounded RAG Generator (app/services/rag_service.py)
+```
+
+---
+
+## 🧪 Verification & Test Commands
+
+### Backend Pytest Suite:
 ```bash
 cd backend
 python -m pytest
 ```
 
+### Frontend Type Check & Production Build:
+```bash
+cd frontend
+npm run build
+```
+
 ---
 
-## 💻 Running the Services
+## 💻 Running RepoPilot Locally
 
-### Backend:
+### 1. Start Backend API Server:
 ```bash
 cd backend
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend:
+### 2. Start Frontend Dev Server:
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
+Open `http://localhost:5173` in your browser.
