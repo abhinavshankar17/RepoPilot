@@ -6,43 +6,45 @@ RepoPilot allows developers to provide any GitHub repository URL, automatically 
 
 ---
 
-## 🧩 Phase 3: Code Parsing & AST Analysis
+## ⚡ Phase 5: Embeddings & FAISS Vector Storage
 
-RepoPilot analyzes code structure using AST parsing instead of treating source files as plain text.
+Phase 5 converts code-aware chunks into vector embeddings and stores them in isolated, persistent FAISS indexes.
 
-### Modular Parser Architecture
-- [`BaseLanguageParser`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/base.py): Abstract base class interface.
-- [`PythonASTParser`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/python_parser.py): Native AST parser using Python's built-in `ast` module. Extracts classes, methods, functions, decorators, parameters, API routes (`@app.get`, `@router.post`), and line ranges.
-- [`JSTSParser`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/js_ts_parser.py): JavaScript / TypeScript parser extracting classes, interfaces, constructors, methods, arrow functions, exported functions, parameters, imports, and parent class relationships.
-- [`GenericLanguageParser`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/generic_parser.py): Parser for Java, Go, Rust, and C/C++.
-- [`FallbackParser`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/fallback_parser.py): Plain text fallback preserving file content in blocks when AST parsing fails or file format is unstructured.
-- [`ParserRegistry`](file:///c:/Users/abhin/OneDrive/Desktop/Projects/RepoPilot/backend/app/parsers/registry.py): Centralized registry routing files to appropriate language parsers.
-
-### Normalized `CodeSymbol` JSON Representation
-```json
-{
-  "repository_id": "repo-123",
-  "file_path": "src/middleware/auth.js",
-  "language": "JavaScript",
-  "symbol_type": "method",
-  "symbol_name": "createUser",
-  "start_line": 8,
-  "end_line": 11,
-  "content": "async createUser(req, res) { ... }",
-  "parent_symbol": "UserController",
-  "parameters": ["req", "res"],
-  "decorators": [],
-  "metadata": {}
-}
+### Pipeline Architecture
+```
+Chunks (Phase 4)
+   │
+   ▼
+[BaseEmbeddingProvider] (Configurable: Mock / OpenAI / Sentence-Transformers)
+   │
+   ▼
+[Vector Insertion & Normalization] (L2-normalized vectors for Cosine Similarity)
+   │
+   ▼
+[FAISS Vector Store] (IndexFlatIP) + [Metadata Store] (metadata.json)
 ```
 
 ---
 
-## 🔒 Security & Protection Policies
+## 🛠️ Core Vector Store Services
 
-1. **Sandboxed AST Analysis**: Static analysis only — **NEVER** executes or imports repository code.
-2. **Graceful Failures**: If AST parsing encounters syntax errors, it gracefully falls back to plain text blocks without crashing.
-3. **Accurate Line Ranges**: Preserves exact 1-indexed `start_line` and `end_line` metadata.
+- **`EmbeddingProvider` Abstraction**: Switch embedding models (`mock`, `openai`, `sentence-transformers`) via `EMBEDDING_PROVIDER` environment variable without rewriting the RAG pipeline.
+- **Repository Isolation**: Each repository maintains its own isolated FAISS index (`storage/vector_indices/{repository_id}/index.faiss`) and separate metadata file (`metadata.json`).
+- **Disk Persistence & Reloading**: Vector indices and metadata persist to disk and automatically reload on service restart or query.
+- **Core Operations**:
+  - `index_repository(repository_id, chunks)`
+  - `search(repository_id, query, top_k)`
+  - `load_index(repository_id)`
+  - `delete_index(repository_id)`
+
+---
+
+## 🔒 Security & Edge Case Policies
+
+1. **No Secret Leakage**: API keys (`OPENAI_API_KEY`) are read strictly from environment variables and never exposed in logs or API responses.
+2. **Duplicate Indexing Safeguard**: Re-indexing a repository clean-rebuilds the FAISS index without creating duplicate entries.
+3. **Empty Repositories**: Gracefully creates 0-vector FAISS indices without throwing errors.
+4. **Batch Generation**: Embeddings are generated in configurable batches to prevent API rate limit issues.
 
 ---
 

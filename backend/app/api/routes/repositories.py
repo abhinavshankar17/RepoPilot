@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.repository import RepositoryCreate, RepositoryResponse, RepositoryListResponse
+from app.schemas.chunk import ChunkInspectResponse
 from app.services.repository_service import RepositoryService, get_repository_service
 
 router = APIRouter(prefix="/repositories", tags=["Repositories"])
@@ -46,3 +47,25 @@ async def get_repository(
             detail=f"Repository '{repository_id}' not found."
         )
     return repo
+
+
+@router.get("/{repository_id}/chunks", response_model=ChunkInspectResponse, status_code=status.HTTP_200_OK)
+async def inspect_repository_chunks(
+    repository_id: str,
+    repo_service: RepositoryService = Depends(get_repository_service)
+):
+    """Chunk inspection endpoint allowing debugging of generated code chunks before embedding."""
+    repo = repo_service.get_repository_by_id(repository_id)
+    if not repo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Repository '{repository_id}' not found."
+        )
+
+    chunks = repo_service.ingestion_svc.get_repository_chunks(repository_id)
+    return ChunkInspectResponse(
+        repository_id=repository_id,
+        file_path=repo.name,
+        total_chunks=len(chunks),
+        chunks=chunks
+    )

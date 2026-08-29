@@ -10,6 +10,10 @@ import git
 from app.core.config import settings
 from app.core.logging import logger
 from app.schemas.repository import RepositoryCreate, RepositoryResponse
+from app.schemas.chunk import CodeChunk
+from app.services.parser_service import get_parser_service
+from app.services.chunker_service import get_chunker_service
+from app.services.vector_store import get_vector_store_service
 
 
 class LanguageDetector:
@@ -195,11 +199,12 @@ class GitIngestionSource(BaseIngestionSource):
 
 
 class IngestionService:
-    """Orchestrates repository ingestion, scanning, and state recording."""
+    """Orchestrates repository ingestion, scanning, parsing, chunking, and state recording."""
 
     def __init__(self, storage_base_dir: Optional[str] = None):
         self.storage_base_dir = storage_base_dir or settings.STORAGE_DIR
         self._registry: Dict[str, RepositoryResponse] = {}
+        self._chunk_registry: Dict[str, List[CodeChunk]] = {}
 
     @staticmethod
     def extract_repo_name(url: str) -> str:
@@ -222,6 +227,29 @@ class IngestionService:
             git_source.prepare_repository(target_storage_dir)
             valid_files, languages = FileScanner.scan_directory(target_storage_dir)
 
+            parser_svc = get_parser_service()
+            chunker_svc = get_chunker_service()
+            all_chunks: List[CodeChunk] = []
+
+            for rel_file in valid_files:
+                full_path = os.path.join(target_storage_dir, rel_file)
+                try:
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        raw_content = f.read()
+
+                    lang = LanguageDetector.get_language(full_path) or "Plain Text"
+                    symbols = parser_svc.parse_file(repo_id, rel_file, raw_content, lang)
+                    file_chunks = chunker_svc.create_chunks(repo_id, rel_file, symbols, raw_content, lang)
+                    all_chunks.extend(file_chunks)
+                except Exception as file_err:
+                    logger.warning(f"Error parsing/chunking file {rel_file}: {file_err}")
+
+            self._chunk_registry[repo_id] = all_chunks
+
+            # Generate embeddings and store in FAISS vector store
+            vector_store = get_vector_store_service()
+            vector_store.index_repository(repo_id, all_chunks)
+
             response = RepositoryResponse(
                 id=repo_id,
                 name=repo_name,
@@ -230,16 +258,16 @@ class IngestionService:
                 status="completed",
                 storage_path=target_storage_dir,
                 file_count=len(valid_files),
+                chunk_count=len(all_chunks),
                 detected_languages=languages,
                 created_at=now,
                 updated_at=now,
-                message=f"Successfully ingested {len(valid_files)} files across {len(languages)} languages."
+                message=f"Successfully ingested {len(valid_files)} files, indexed {len(all_chunks)} vectors in FAISS."
             )
             self._registry[repo_id] = response
             return response
 
         except Exception as e:
-            # Record failed status if directory setup was attempted
             response = RepositoryResponse(
                 id=repo_id,
                 name=repo_name,
@@ -248,12 +276,14 @@ class IngestionService:
                 status="failed",
                 storage_path=target_storage_dir,
                 file_count=0,
+                chunk_count=0,
                 detected_languages=[],
                 created_at=now,
                 updated_at=now,
                 message=str(e)
             )
             self._registry[repo_id] = response
+            self._chunk_registry[repo_id] = []
             raise e
 
     def list_repositories(self) -> List[RepositoryResponse]:
@@ -261,6 +291,9 @@ class IngestionService:
 
     def get_repository(self, repo_id: str) -> Optional[RepositoryResponse]:
         return self._registry.get(repo_id)
+
+    def get_repository_chunks(self, repo_id: str) -> List[CodeChunk]:
+        return self._chunk_registry.get(repo_id, [])
 
 
 # Global singleton instance for service dependency injection
