@@ -1,12 +1,12 @@
-# RepoPilot 🚀
+# RepoPilot
 
-> **RAG-powered Developer Documentation & Codebase Copilot**
+> **RAG-Powered Developer Documentation & Codebase Copilot**
 
-RepoPilot is an advanced developer tool that ingests GitHub repositories, parses source code using AST structure, indexes code-aware chunks in FAISS, and provides natural-language answers with exact file paths, symbol names, and line range citations.
+RepoPilot is an enterprise-grade developer copilot that ingests GitHub repositories, parses source code using Abstract Syntax Tree (AST) structure, indexes code-aware chunks in FAISS, extracts relationship graphs, and provides natural-language answers backed by grounded file paths, symbol names, and exact line range citations.
 
 ---
 
-## 📌 1. Problem Statement
+## 1. Problem Statement
 
 Navigating complex or unfamiliar codebases requires manual search, constant context switching, and piecing together outdated documentation. Generic LLM chat assistants fail on codebase queries because they hallucinate non-existent files, invent arbitrary line numbers, and lack awareness of repository-specific AST structures.
 
@@ -14,97 +14,196 @@ RepoPilot solves this by combining AST structural parsing, hybrid vector + keywo
 
 ---
 
-## ✨ 2. Key Features
+## 2. Key Features
 
-- 📂 **AST Code Parsing & Code-Aware Chunking**: Chunks code by functions, classes, and modules instead of naive token splitting.
-- ⚡ **Hybrid Retrieval Engine**: Combines dense FAISS vector search with Okapi BM25 keyword search via Reciprocal Rank Fusion (RRF).
-- 🎯 **Cross-Encoder Reranking**: Re-ranks top candidates for exact identifier matching.
-- 💬 **Conversation Context & Follow-Up Rewriting**: Session memory rewrites ambiguous follow-up questions ("Where is the token generated?") into standalone queries.
-- 🧠 **Repository Intelligence**:
-  - **Code Flow**: Traces `Route → Controller → Service → Repository → Database`.
+- **AST Code Parsing & Code-Aware Chunking**: Chunks code by functions, classes, and modules instead of naive token splitting.
+- **Hybrid Retrieval Engine**: Combines dense FAISS vector search with Okapi BM25 keyword search via Reciprocal Rank Fusion (RRF).
+- **Cross-Encoder Reranking**: Re-ranks top candidates for exact identifier matching.
+- **Conversation Context & Follow-Up Rewriting**: Session memory rewrites ambiguous follow-up questions ("Where is the token generated?") into standalone queries.
+- **Repository Intelligence**:
+  - **Code Flow**: Traces `Route -> Controller -> Service -> Repository -> Database`.
   - **Impact Analysis**: Identifies modification impacts across imports, calls, and routes.
   - **Change Planning**: Recommends file edits while separating code evidence from LLM inferences.
-- 🕸️ **Repository Relationship Graph**: Maps `IMPORTS`, `CALLS`, `DEFINES`, `EXTENDS`, `IMPLEMENTS`, `USES`, and `ROUTES_TO`.
-- 🖥️ **Integrated Code Explorer**: 3-panel React UI with auto-scroll and cited line range highlighting.
-- 🔒 **Production Security & Multi-Tenancy**: JWT authentication, RBAC (`user`/`admin`), multi-tenant repository isolation, SSRF URL validation, and path traversal protection.
+- **Repository Relationship Graph**: Maps `IMPORTS`, `CALLS`, `DEFINES`, `EXTENDS`, `IMPLEMENTS`, `USES`, and `ROUTES_TO`.
+- **Integrated Code Explorer**: 3-panel React UI with auto-scroll and cited line range highlighting.
+- **Production Security & Multi-Tenancy**: JWT authentication, RBAC (`user`/`admin`), multi-tenant repository isolation, SSRF URL validation, and path traversal protection.
 
 ---
 
-## 🏗️ 3. Architecture Diagram
+## 3. Architecture Diagrams
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        React 18 Developer UI                           │
-│     (Left: File Tree | Center: AI Chat | Right: Code Inspector)        │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTP / REST API
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                          FastAPI Backend Core                          │
-│ ┌───────────────────────┬──────────────────────┬─────────────────────┐ │
-│ │  Repository Service   │     RAG Service      │ Intelligence Svc    │ │
-│ └───────────┬───────────┴──────────┬───────────┴──────────┬──────────┘ │
-│             │                      │                      │            │
-│             ▼                      ▼                      ▼            │
-│ ┌───────────────────────┐┌────────────────────┐┌────────────────────┐ │
-│ │ AST Parser & Chunker  ││  Hybrid Retriever  ││ Relationship Graph │ │
-│ └───────────────────────┘└────────────────────┘└────────────────────┘ │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Persistence
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Storage & Data Persistence                      │
-│ ┌─────────────────────┐ ┌────────────────────┐ ┌────────────────────┐ │
-│ │  FAISS Vector Store │ │  Repository Storage│ │ PostgreSQL / Redis │ │
-│ └─────────────────────┘ └────────────────────┘ └────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────┘
-```
+### System Architecture Flow
 
----
+```mermaid
+flowchart TD
+    subgraph Frontend["React 18 Developer Interface"]
+        UI["3-Panel UI Dashboard"]
+        FE_FE["File Explorer Component"]
+        FE_CP["Chat & RAG Panel"]
+        FE_CI["Code Inspector & Viewer"]
+        UI --> FE_FE
+        UI --> FE_CP
+        UI --> FE_CI
+    end
 
-## 🔄 4. RAG Pipeline
+    subgraph API["FastAPI Backend Layer"]
+        AUTH["JWT Authentication & RBAC Guard"]
+        REPO_SVC["Repository Ingestion Controller"]
+        RAG_SVC["RAG Query & Memory Engine"]
+        INTEL_SVC["Repository Intelligence Engine"]
+    end
 
-1. **User Query Input**: Session service receives query and conversation history.
-2. **Query Rewriting**: Ambiguous follow-ups are rewritten into self-contained search queries.
-3. **Hybrid Search**: Retrieves candidates via FAISS vector similarity + Okapi BM25 keyword matching.
-4. **Candidate Fusion & Reranking**: Reciprocal Rank Fusion (RRF) + Cross-Encoder re-scores candidates.
-5. **Context Construction & Prompting**: Synthesizes prompt with retrieved code snippets and anti-hallucination rules.
-6. **LLM Generation**: Produces answer accompanied by structured citation metadata (`file_path`, `symbol`, `start_line`, `end_line`).
+    subgraph Core["Parsing & Retrieval Core"]
+        PARSER["Tree-Sitter / Regex AST Parser"]
+        GRAPH_ENG["Relationship Graph Builder"]
+        HYBRID_RET["Hybrid Vector + BM25 Retriever"]
+        RERANKER["Cross-Encoder Reranker"]
+    end
 
----
+    subgraph Storage["Persistence Layer"]
+        FAISS_DB["FAISS Vector Store (.index)"]
+        PG_DB["PostgreSQL Database"]
+        REDIS_DB["Redis Session Cache"]
+    end
 
-## 🧩 5. Code Parsing Pipeline
+    Frontend -- REST API / HTTP --> AUTH
+    AUTH --> REPO_SVC
+    AUTH --> RAG_SVC
+    AUTH --> INTEL_SVC
 
-```
-GitHub Repo URL
-   │
-   ▼
-[Git Clone & Directory Scanner] (Filters binary files, node_modules, >1MB files)
-   │
-   ▼
-[Tree-Sitter / Regex AST Parser]
-   │
-   ├── Extracts: Functions, Classes, Methods, Imports, Routes, Line Ranges
-   ├── Chunks: Function-level and Class-level boundaries
-   └── Builds: Relationship Graph (IMPORTS, CALLS, DEFINES, USES, ROUTES_TO)
-   │
-   ▼
-[FAISS Vector Store + Graph Storage Persistence]
+    REPO_SVC --> PARSER
+    PARSER --> GRAPH_ENG
+    PARSER --> FAISS_DB
+    GRAPH_ENG --> PG_DB
+
+    RAG_SVC --> HYBRID_RET
+    HYBRID_RET --> FAISS_DB
+    HYBRID_RET --> RERANKER
+    RAG_SVC --> REDIS_DB
 ```
 
 ---
 
-## 💻 6. Tech Stack
+## 4. Code Parsing & Ingestion Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Input["Repository Source"]
+        URL["GitHub Repository URL"]
+        LOCAL["Local Directory Path"]
+    end
+
+    subgraph Ingestion["Ingestion Processor"]
+        CLONE["Git Clone & Security Validation"]
+        SCAN["Directory Scanner & Ignore Filter"]
+        READ["File Reader (<1MB Text Files)"]
+    end
+
+    subgraph Parsing["AST Structural Analyzer"]
+        AST["AST Code Parser"]
+        EXTRACT["Extract Symbols & Line Ranges"]
+        CHUNK["Code-Aware Chunk Extractor"]
+    end
+
+    subgraph Indexing["Vector & Graph Storage"]
+        EMBED["Sentence-Transformers Embedder"]
+        FAISS["FAISS Index Persistence"]
+        GRAPH["Relationship Graph Storage"]
+    end
+
+    URL --> CLONE
+    LOCAL --> SCAN
+    CLONE --> SCAN
+    SCAN --> READ
+    READ --> AST
+    AST --> EXTRACT
+    EXTRACT --> CHUNK
+    CHUNK --> EMBED
+    EMBED --> FAISS
+    EXTRACT --> GRAPH
+```
+
+---
+
+## 5. RAG Pipeline & Retrieval Flow
+
+```mermaid
+flowchart TD
+    subgraph Step1["1. User Query & Memory"]
+        QUERY["User Query Input"]
+        MEMORY["Conversation History (Redis)"]
+        REWRITE["Query Rewriter Engine"]
+        QUERY & MEMORY --> REWRITE
+    end
+
+    subgraph Step2["2. Hybrid Retrieval"]
+        REWRITTEN_Q["Standalone Search Query"]
+        REWRITE --> REWRITTEN_Q
+        VEC_SEARCH["Dense FAISS Search (Vector IP)"]
+        BM25_SEARCH["Sparse Okapi BM25 Search"]
+        REWRITTEN_Q --> VEC_SEARCH
+        REWRITTEN_Q --> BM25_SEARCH
+    end
+
+    subgraph Step3["3. Candidate Fusion & Reranking"]
+        RRF["Reciprocal Rank Fusion (RRF)"]
+        RERANK["Cross-Encoder Reranker"]
+        VEC_SEARCH & BM25_SEARCH --> RRF
+        RRF --> RERANK
+    end
+
+    subgraph Step4["4. Generation & Citations"]
+        PROMPT["Anti-Hallucination System Prompt"]
+        LLM["LLM Generation Service"]
+        RESPONSE["Grounded Response + Exact Line Citations"]
+        RERANK --> PROMPT
+        PROMPT --> LLM
+        LLM --> RESPONSE
+    end
+```
+
+---
+
+## 6. Repository Intelligence Analysis Flow
+
+```mermaid
+flowchart LR
+    subgraph Intelligence["Intelligence Engines"]
+        FLOW["Code Flow Tracing"]
+        IMPACT["Impact Analysis"]
+        PLAN["Change Planning"]
+    end
+
+    subgraph Graph["Relationship Graph"]
+        NODES["AST Symbol Nodes"]
+        EDGES["IMPORTS / CALLS / DEFINES / USES / ROUTES_TO"]
+    end
+
+    subgraph Output["Structured Intelligence Reports"]
+        FLOW_OUT["Route -> Controller -> Service -> DB Execution Pipeline"]
+        IMPACT_OUT["Import & Dependent Module Change Analysis"]
+        PLAN_OUT["File Recommendations & Evidence Separation"]
+    end
+
+    NODES & EDGES --> FLOW & IMPACT & PLAN
+    FLOW --> FLOW_OUT
+    IMPACT --> IMPACT_OUT
+    PLAN --> PLAN_OUT
+```
+
+---
+
+## 7. Tech Stack
 
 - **Backend**: Python 3.13, FastAPI, Pydantic v2, Pytest, Uvicorn
 - **Retrieval & RAG**: FAISS, rank-bm25, Cross-Encoder Reranker, Tree-Sitter
 - **Database & Cache**: PostgreSQL 16, Redis 7
-- **Frontend**: React 18, TypeScript, Tailwind CSS v4, Lucide Icons, Vite
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide Icons, Vite
 - **Containerization**: Docker, Docker Compose, Nginx
 
 ---
 
-## ⚙️ 7. Installation & Setup
+## 8. Installation & Setup
 
 ### Prerequisites
 - Docker & Docker Compose OR Python 3.13+ & Node.js 20+
@@ -125,7 +224,7 @@ Access the application at `http://localhost`.
 
 ---
 
-## 🔑 8. Environment Variables
+## 9. Environment Variables
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
@@ -138,19 +237,19 @@ Access the application at `http://localhost`.
 
 ---
 
-## 📡 9. Key API Endpoints
+## 10. Key API Endpoints
 
 - `POST /api/v1/repositories`: Ingest GitHub repository
 - `GET /api/v1/repositories`: List ingested repositories
 - `GET /api/v1/repositories/{id}/files/{file_path}`: Safe file retrieval with line slicing
 - `POST /api/v1/repositories/{id}/query`: RAG query endpoint
-- `POST /api/v1/repositories/{id}/flow`: Code Flow analysis (`Route → Controller → Database`)
+- `POST /api/v1/repositories/{id}/flow`: Code Flow analysis (`Route -> Controller -> Database`)
 - `POST /api/v1/repositories/{id}/impact`: Impact analysis for file/symbol modifications
 - `POST /api/v1/repositories/{id}/change-plan`: Feature change recommendation planning
 
 ---
 
-## ❓ 10. Example Questions
+## 11. Example Questions
 
 1. *"Explain the request flow for POST /api/orders."*
 2. *"What could be affected if I modify auth.js?"*
@@ -159,16 +258,16 @@ Access the application at `http://localhost`.
 
 ---
 
-## 🖥️ 11. Developer Interface Overview
+## 12. Developer Interface Overview
 
 The React developer interface features a 3-panel layout:
-- **Left Panel (File Explorer)**: Hierarchical file tree navigation.
-- **Center Panel (AI Chat Panel)**: Conversational interface displaying Markdown responses, citations, and rewritten query badges.
+- **Left Panel (File Explorer)**: Hierarchical file tree navigation dynamically generated from AST chunk inspection.
+- **Center Panel (AI Chat Panel)**: Conversational interface displaying Markdown responses, citation pills, and rewritten query badges.
 - **Right Panel (Source Code Inspector)**: Integrated code viewer displaying syntax highlighting, symbol badges, line gutters, smooth auto-scroll, and cited range highlighting.
 
 ---
 
-## 📊 12. Evaluation Methodology & Results
+## 13. Evaluation Methodology & Results
 
 Measured using `python app/eval/run_eval.py` over a gold-standard benchmark dataset (`app/eval/benchmark.json`):
 
@@ -180,7 +279,7 @@ Measured using `python app/eval/run_eval.py` over a gold-standard benchmark data
 
 ---
 
-## 🔒 13. Security Considerations
+## 14. Security Considerations
 
 1. **JWT & RBAC**: Role-based permissions (`user` vs `admin`).
 2. **Multi-Tenant Repository Isolation**: Repositories scoped per owner (`storage/{owner_id}/{repo_id}/`).
@@ -190,14 +289,14 @@ Measured using `python app/eval/run_eval.py` over a gold-standard benchmark data
 
 ---
 
-## ⚠️ 14. Known Limitations
+## 15. Known Limitations
 
 - Monolithic single-file scripts lacking class/function signatures default to module-level chunking.
 - Off-line evaluation defaults to keyless mock embedding providers.
 
 ---
 
-## 🚀 15. Recommended Next Steps
+## 16. Recommended Next Steps
 
 - Integrate Tree-sitter native C-bindings for Rust / Go / C++ parsers.
 - Add WebSocket support for streaming LLM response tokens.

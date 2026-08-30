@@ -26,9 +26,9 @@ class MockLLMProvider(BaseLLMProvider):
             return "The provided repository context does not contain sufficient information to answer your question."
 
         prompt_lower = prompt.lower()
+        query_part = prompt.split("Query:")[-1].lower() if "Query:" in prompt else prompt_lower
 
-        # Context-aware developer synthesis based on retrieved snippets and query topic
-        if "auth" in prompt_lower or "passport" in prompt_lower or "login" in prompt_lower:
+        if "auth" in query_part or "passport" in query_part or "login" in query_part or "session" in query_part:
             return (
                 "### User Authentication & Session Management Architecture\n\n"
                 "User authentication in this repository is built using **Passport.js** and **passport-local-mongoose**:\n\n"
@@ -38,7 +38,16 @@ class MockLLMProvider(BaseLLMProvider):
                 "4. **Route Protection (`routes/users.js`)**: Maps POST `/register` and POST `/login` endpoints with flash messaging and session redirection."
             )
 
-        if "flow" in prompt_lower or "campground" in prompt_lower or "create" in prompt_lower or "middleware" in prompt_lower:
+        if "cloudinary" in query_part or "multer" in query_part or "image" in query_part or "upload" in query_part:
+            return (
+                "### Cloudinary & Multer Storage Configuration\n\n"
+                "Image uploads and cloud persistence are configured via:\n\n"
+                "1. **Cloudinary Storage Client (`cloudinary/index.js`)**: Configures `cloudinary.config()` with process environment credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_KEY`, `CLOUDINARY_SECRET`).\n"
+                "2. **Multer Cloud Storage (`CloudinaryStorage`)**: Defines `folder: 'YelpCamp'` and restricts allowed formats to `jpeg`, `jpg`, `png`.\n"
+                "3. **Upload Middleware Routing (`routes/campground.js`)**: Configures `upload.array('image')` to intercept multipart form data during POST/PUT request processing."
+            )
+
+        if "flow" in query_part or "campground" in query_part or "create" in query_part or "pipeline" in query_part:
             return (
                 "### Request Execution & Middleware Validation Flow\n\n"
                 "The end-to-end request flow for creating or updating campgrounds follows a structured 5-layer pipeline:\n\n"
@@ -52,16 +61,7 @@ class MockLLMProvider(BaseLLMProvider):
                 "5. **Database Controller (`controllers/campgrounds.js`)**: `createCampground` creates the document in MongoDB, attaches author reference, and redirects."
             )
 
-        if "cloudinary" in prompt_lower or "multer" in prompt_lower or "image" in prompt_lower or "upload" in prompt_lower:
-            return (
-                "### Cloudinary & Multer Storage Configuration\n\n"
-                "Image uploads and cloud persistence are configured via:\n\n"
-                "1. **Cloudinary Storage Client (`cloudinary/index.js`)**: Configures `cloudinary.config()` with process environment credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_KEY`, `CLOUDINARY_SECRET`).\n"
-                "2. **Multer Cloud Storage (`CloudinaryStorage`)**: Defines `folder: 'YelpCamp'` and restricts allowed formats to `jpeg`, `jpg`, `png`.\n"
-                "3. **Upload Middleware Routing (`routes/campground.js`)**: Configures `upload.array('image')` to intercept multipart form data during POST/PUT request processing."
-            )
-
-        if "security" in prompt_lower or "helmet" in prompt_lower or "sanitize" in prompt_lower or "protect" in prompt_lower:
+        if "security" in query_part or "helmet" in query_part or "sanitize" in query_part or "protect" in query_part:
             return (
                 "### Production Security Middleware & Data Protections\n\n"
                 "The codebase incorporates multiple defense-in-depth security measures:\n\n"
@@ -71,7 +71,7 @@ class MockLLMProvider(BaseLLMProvider):
                 "4. **Authorization Middleware (`middleware.js`)**: `isAuthor` and `isReviewAuthor` verify document ownership before allowing edit or delete operations."
             )
 
-        if "affect" in prompt_lower or "schema" in prompt_lower or "modify" in prompt_lower or "model" in prompt_lower:
+        if "affect" in query_part or "schema" in query_part or "modify" in query_part or "model" in query_part:
             return (
                 "### Impact Analysis for Model & Schema Modifications\n\n"
                 "Modifying the Mongoose data models (`models/campground.js` or `models/review.js`) impacts the following downstream modules:\n\n"
