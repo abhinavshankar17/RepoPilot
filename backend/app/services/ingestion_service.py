@@ -83,6 +83,31 @@ class FileScanner:
             return True
 
     @classmethod
+    def is_valid_github_url(cls, url: str) -> bool:
+        if not url or not isinstance(url, str):
+            return False
+        url_strip = url.strip()
+        # Require HTTPS protocol
+        if not url_strip.startswith("https://") and not url_strip.startswith("http://github.com"):
+            return False
+
+        # Reject internal IPs and SSRF targets
+        forbidden_targets = ["127.0.0.1", "localhost", "169.254.", "10.0.", "192.168."]
+        if any(target in url_strip.lower() for target in forbidden_targets):
+            return False
+
+        parsed = urlparse(url_strip)
+        if parsed.netloc.lower() not in ("github.com", "www.github.com"):
+            return False
+
+        # Validate URL path format: /org/repo or /org/repo.git
+        path_parts = [p for p in parsed.path.strip("/").split("/") if p]
+        if len(path_parts) < 2:
+            return False
+
+        return True
+
+    @classmethod
     def is_allowed_file(cls, file_name: str) -> bool:
         upper_name = file_name.upper()
         if upper_name.startswith("README") or upper_name.startswith("LICENSE"):
@@ -214,14 +239,14 @@ class IngestionService:
             clean_url = clean_url[:-4]
         return clean_url.split("/")[-1]
 
-    def ingest_github_repository(self, payload: RepositoryCreate) -> RepositoryResponse:
+    def ingest_github_repository(self, payload: RepositoryCreate, owner_id: str = "default_owner") -> RepositoryResponse:
         git_source = GitIngestionSource(payload.url, payload.branch)
         if not git_source.is_valid_github_url(payload.url):
             raise ValueError(f"Invalid GitHub repository URL format: {payload.url}")
 
         repo_id = str(uuid.uuid4())[:8]
         repo_name = self.extract_repo_name(payload.url)
-        target_storage_dir = os.path.join(self.storage_base_dir, repo_id)
+        target_storage_dir = os.path.join(self.storage_base_dir, owner_id, repo_id)
         now = datetime.now(timezone.utc)
 
         try:
@@ -257,6 +282,7 @@ class IngestionService:
 
             response = RepositoryResponse(
                 id=repo_id,
+                owner_id=owner_id,
                 name=repo_name,
                 url=payload.url,
                 branch=payload.branch or "main",
@@ -275,6 +301,7 @@ class IngestionService:
         except Exception as e:
             response = RepositoryResponse(
                 id=repo_id,
+                owner_id=owner_id,
                 name=repo_name,
                 url=payload.url,
                 branch=payload.branch,
@@ -291,8 +318,10 @@ class IngestionService:
             self._chunk_registry[repo_id] = []
             raise e
 
-    def list_repositories(self) -> List[RepositoryResponse]:
-        return list(self._registry.values())
+    def list_repositories(self, owner_id: Optional[str] = None, is_admin: bool = False) -> List[RepositoryResponse]:
+        if is_admin or not owner_id:
+            return list(self._registry.values())
+        return [r for r in self._registry.values() if r.owner_id == owner_id]
 
     def get_repository(self, repo_id: str) -> Optional[RepositoryResponse]:
         return self._registry.get(repo_id)

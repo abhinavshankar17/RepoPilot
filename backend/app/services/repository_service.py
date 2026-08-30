@@ -10,11 +10,11 @@ class RepositoryService:
     def __init__(self, ingestion_svc: IngestionService = None):
         self.ingestion_svc = ingestion_svc or get_ingestion_service()
 
-    def create_repository(self, payload: RepositoryCreate) -> RepositoryResponse:
-        return self.ingestion_svc.ingest_github_repository(payload)
+    def create_repository(self, payload: RepositoryCreate, owner_id: str = "default_owner") -> RepositoryResponse:
+        return self.ingestion_svc.ingest_github_repository(payload, owner_id=owner_id)
 
-    def list_repositories(self) -> RepositoryListResponse:
-        repos = self.ingestion_svc.list_repositories()
+    def list_repositories(self, owner_id: Optional[str] = None, is_admin: bool = False) -> RepositoryListResponse:
+        repos = self.ingestion_svc.list_repositories(owner_id=owner_id, is_admin=is_admin)
         return RepositoryListResponse(total=len(repos), repositories=repos)
 
     def get_repository_by_id(self, repo_id: str) -> Optional[RepositoryResponse]:

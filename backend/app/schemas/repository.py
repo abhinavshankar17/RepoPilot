@@ -10,6 +10,7 @@ class RepositoryCreate(BaseModel):
 
 class RepositoryResponse(BaseModel):
     id: str = Field(..., description="Unique repository identifier")
+    owner_id: str = Field(default="default_owner", description="Owner user ID for multi-tenant isolation")
     name: str = Field(..., description="Repository name extracted from URL")
     url: str = Field(..., description="Repository git URL")
     branch: Optional[str] = Field(default=None, description="Ingested branch name")
