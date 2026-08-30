@@ -1,25 +1,90 @@
 version: '3.8'
 
 services:
+  # --- 1. PostgreSQL Database Service ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: repopilot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-repopilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-repopilot_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-repopilot_db}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-repopilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # --- 2. Redis Caching & State Service ---
+  redis:
+    image: redis:7-alpine
+    container_name: repopilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
+  # --- 3. FastAPI Backend Service ---
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: repopilot-backend
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8000:8000"
-    environment:
-      - ENVIRONMENT=development
-      - HOST=0.0.0.0
-      - PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     volumes:
-      - ./backend/storage:/app/storage
-      - ./backend/vector_indices:/app/vector_indices
+      - storage_data:/app/storage
+      - vector_data:/app/vector_indices
 
+  # --- 4. React Frontend Nginx Service ---
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: repopilot-frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# Persistent Volume Storage
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  storage_data:
+    driver: local
+  vector_data:
+    driver: local

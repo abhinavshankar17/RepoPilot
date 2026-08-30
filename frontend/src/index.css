@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
 }
 
 * {
@@ -11,18 +11,27 @@
   padding: 0;
 }
 
-body {
+html, body {
   font-family: var(--font-sans);
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: #0b0f19;
+  color: #f1f5f9;
   min-height: 100vh;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbars */
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom sleek scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -31,9 +40,21 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: #1e293b;
-  border-radius: 3px;
+  border-radius: 4px;
+  border: 2px solid #090d16;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #334155;
+}
+
+/* Code highlight line animations */
+@keyframes highlightPulse {
+  0% { background-color: rgba(99, 102, 241, 0.25); }
+  50% { background-color: rgba(99, 102, 241, 0.40); }
+  100% { background-color: rgba(99, 102, 241, 0.25); }
+}
+
+.highlighted-code-line {
+  animation: highlightPulse 3s ease-in-out infinite;
 }

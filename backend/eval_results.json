@@ -1,9 +1,9 @@
 {
-  "evaluation_timestamp": "2026-08-30T13:22:14Z",
+  "evaluation_timestamp": "2026-08-30T13:37:29Z",
   "benchmark_dataset_size": 5,
   "system_latencies": {
-    "indexing_time_ms": 2.88,
-    "embedding_time_ms": 2.8,
+    "indexing_time_ms": 3.45,
+    "embedding_time_ms": 3.35,
     "retrieval_latency_ms": 0.0,
     "reranking_latency_ms": 0.0,
     "llm_latency_ms": 0.0,
@@ -24,9 +24,9 @@
         "AnswerRelevance": 0.04
       },
       "latency_metrics": {
-        "retrieval_latency_ms": 0.42,
-        "llm_latency_ms": 0.05,
-        "total_response_latency_ms": 0.48
+        "retrieval_latency_ms": 0.36,
+        "llm_latency_ms": 0.04,
+        "total_response_latency_ms": 0.41
       }
     },
     "hybrid": {
@@ -43,9 +43,9 @@
         "AnswerRelevance": 0.04
       },
       "latency_metrics": {
-        "retrieval_latency_ms": 0.39,
-        "llm_latency_ms": 0.05,
-        "total_response_latency_ms": 0.46
+        "retrieval_latency_ms": 0.29,
+        "llm_latency_ms": 0.04,
+        "total_response_latency_ms": 0.35
       }
     },
     "hybrid_rerank": {
@@ -62,9 +62,9 @@
         "AnswerRelevance": 0.04
       },
       "latency_metrics": {
-        "retrieval_latency_ms": 0.29,
-        "llm_latency_ms": 0.03,
-        "total_response_latency_ms": 0.33
+        "retrieval_latency_ms": 0.37,
+        "llm_latency_ms": 0.04,
+        "total_response_latency_ms": 0.42
       }
     }
   }

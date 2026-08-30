@@ -86,3 +86,11 @@ export async function queryRepository(repoId: string, data: QueryRequest): Promi
 
   return response.json();
 }
+
+export async function inspectRepositoryChunks(repoId: string) {
+  const response = await fetch(`${API_BASE}/repositories/${repoId}/chunks`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch repository chunks');
+  }
+  return response.json();
+}

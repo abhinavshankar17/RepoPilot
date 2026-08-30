@@ -60,7 +60,9 @@ def test_multi_tenant_repository_isolation():
 
 
 def test_error_message_sanitization():
-    raw_error = "Failed to open C:\\Users\\abhin\\OneDrive\\Desktop\\Projects\\RepoPilot\\storage\\secret.key with key super-secret-jwt-key"
+    from app.core.config import settings
+    raw_error = f"Failed to open {settings.STORAGE_DIR}\\secret.key with key {settings.JWT_SECRET}"
     sanitized = SecurityUtils.sanitize_error_message(raw_error)
-    assert "super-secret-jwt-key" not in sanitized or "[REDACTED" in sanitized
+    assert settings.JWT_SECRET not in sanitized
+    assert "[REDACTED_SECRET]" in sanitized
     assert "[STORAGE_ROOT]" in sanitized

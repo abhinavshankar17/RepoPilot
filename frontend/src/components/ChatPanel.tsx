@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Send, Bot, User, Loader2, Sparkles, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Send, Bot, User, Sparkles, AlertCircle, Loader2, FileCode2, ArrowRight } from 'lucide-react';
 import { ChatMessage, Citation } from '../types';
 
 interface ChatPanelProps {
@@ -18,68 +17,60 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onSendMessage,
   onSelectCitation,
 }) => {
-  const [input, setInput] = useState('');
+  const [inputQuery, setInputQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
-    onSendMessage(input.trim());
-    setInput('');
+    if (!inputQuery.trim() || loading) return;
+    onSendMessage(inputQuery.trim());
+    setInputQuery('');
   };
-
-  const sampleQuestions = [
-    'Where is authentication implemented?',
-    'How does JWT verification work?',
-    'Where is the database connection initialized?',
-    'Which files handle user registration?',
-  ];
 
   return (
     <main className="flex-1 bg-slate-950 flex flex-col h-full overflow-hidden text-slate-100">
-      {/* Panel Header */}
-      <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Bot className="w-4 h-4 text-indigo-400" />
-          <h2 className="text-xs font-semibold text-slate-200">RAG Codebase Copilot</h2>
+      {/* Panel Header Bar */}
+      <div className="p-4 border-b border-slate-800/90 bg-slate-900/60 flex items-center justify-between shadow-sm">
+        <div className="flex items-center space-x-2.5">
+          <Bot className="w-5 h-5 text-indigo-400" />
+          <h2 className="font-bold text-sm text-slate-200 tracking-wide">RAG Codebase Copilot</h2>
         </div>
-        <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono">
-          Hybrid Search + Reranking
-        </span>
+        <div className="flex items-center space-x-2 text-xs text-slate-400">
+          <span className="bg-slate-800/80 border border-slate-700/60 px-2.5 py-1 rounded-lg">Hybrid Search</span>
+          <span>+</span>
+          <span className="bg-slate-800/80 border border-slate-700/60 px-2.5 py-1 rounded-lg">Reranking</span>
+        </div>
       </div>
 
-      {/* Messages Scroll Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
-            <div className="bg-indigo-600/10 p-3 rounded-xl text-indigo-400 border border-indigo-500/20 mb-3 shadow-inner">
-              <Sparkles className="w-8 h-8" />
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-xl mx-auto">
+            <div className="bg-indigo-600/15 border border-indigo-500/30 p-4 rounded-2xl mb-4 text-indigo-400 shadow-xl shadow-indigo-500/10">
+              <Sparkles className="w-8 h-8 stroke-[1.75]" />
             </div>
-            <h3 className="text-sm font-semibold text-slate-200 mb-1">Ask RepoPilot About Your Codebase</h3>
-            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-              Ask natural-language questions about architecture, authentication flows, database setup, or specific function definitions.
+            <h3 className="text-lg font-bold text-slate-100 mb-2">Ask RepoPilot About Your Codebase</h3>
+            <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+              Ask natural-language questions about functions, architecture flows, modification impacts, or feature change plans grounded strictly in AST code parser context.
             </p>
-
-            <div className="w-full space-y-2 text-left">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Suggested Developer Questions:
-              </span>
-              {sampleQuestions.map((q) => (
+            <div className="grid grid-cols-1 gap-2.5 w-full text-left">
+              {[
+                'Explain the request flow for POST /api/orders',
+                'What could be affected if I modify auth.js?',
+                'Where is the token generated?',
+                'I want to add Google OAuth. Which files need modification?',
+              ].map((sample, i) => (
                 <button
-                  key={q}
-                  onClick={() => onSendMessage(q)}
-                  className="w-full text-left bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 text-xs text-slate-300 p-2.5 rounded-lg transition-all flex items-center justify-between group"
+                  key={i}
+                  onClick={() => onSendMessage(sample)}
+                  className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 p-3 rounded-xl text-xs text-slate-300 hover:text-indigo-200 transition-all flex items-center justify-between group cursor-pointer"
                 >
-                  <span>{q}</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+                  <span>"{sample}"</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
                 </button>
               ))}
             </div>
@@ -88,112 +79,103 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex flex-col space-y-1 ${
-                msg.role === 'user' ? 'items-end' : 'items-start'
+              className={`flex space-x-3.5 max-w-3xl ${
+                msg.role === 'user' ? 'ml-auto flex-row-reverse space-x-reverse' : ''
               }`}
             >
-              {/* Message Header */}
-              <div className="flex items-center space-x-1.5 px-1 text-[10px] text-slate-400">
-                {msg.role === 'user' ? (
-                  <>
-                    <span>Developer</span>
-                    <User className="w-3 h-3 text-indigo-400" />
-                  </>
-                ) : (
-                  <>
-                    <Bot className="w-3 h-3 text-emerald-400" />
-                    <span>RepoPilot Copilot</span>
-                  </>
-                )}
-              </div>
-
-              {/* Message Body */}
+              {/* Role Avatar */}
               <div
-                className={`max-w-3xl rounded-xl p-3.5 text-xs leading-relaxed shadow-sm ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
                   msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-none'
-                    : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none'
+                    ? 'bg-gradient-to-tr from-cyan-600 to-blue-600 text-white'
+                    : 'bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white'
                 }`}
               >
-                {/* Rewritten Query Badge */}
-                {msg.role === 'assistant' && msg.rewrittenQuery && msg.originalQuery && msg.rewrittenQuery !== msg.originalQuery && (
-                  <div className="mb-2 p-2 bg-indigo-950/40 border border-indigo-500/20 rounded text-[11px] text-indigo-300">
-                    <span className="font-semibold text-indigo-400">Context Resolved Query: </span>
-                    <span>"{msg.rewrittenQuery}"</span>
-                  </div>
-                )}
+                {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              </div>
 
-                {msg.role === 'user' ? (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                ) : (
-                  <div className="prose prose-invert prose-xs max-w-none space-y-2">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                )}
+              {/* Message Content Bubble */}
+              <div className="flex-1 space-y-2">
+                <div
+                  className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-indigo-600 text-white font-medium shadow-md shadow-indigo-600/20'
+                      : 'bg-slate-900/90 border border-slate-800/90 text-slate-200 shadow-md'
+                  }`}
+                >
+                  {/* Rewritten Query Badge */}
+                  {msg.rewrittenQuery && msg.rewrittenQuery !== msg.originalQuery && (
+                    <div className="mb-3 p-2 bg-slate-950/80 border border-indigo-500/30 rounded-lg text-xs text-indigo-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Rewritten Search Query: <strong>"{msg.rewrittenQuery}"</strong></span>
+                    </div>
+                  )}
 
-                {/* Inline Citations Badges */}
-                {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-800 flex flex-wrap gap-1.5 items-center">
-                    <span className="text-[10px] font-semibold text-slate-400 mr-1">Retrieved Sources:</span>
-                    {msg.citations.map((c, i) => (
-                      <button
-                        key={`${c.chunk_id}-${i}`}
-                        onClick={() => onSelectCitation(c)}
-                        className="bg-slate-800 hover:bg-indigo-600/30 text-indigo-300 border border-slate-700 hover:border-indigo-500/50 text-[10px] px-2 py-0.5 rounded font-mono transition-colors flex items-center gap-1"
-                      >
-                        <span>{c.file_path}</span>
-                        <span className="text-slate-400">L{c.start_line}-{c.end_line}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  <div className="whitespace-pre-wrap font-sans text-sm">{msg.content}</div>
+
+                  {/* Citation Pills */}
+                  {msg.citations && msg.citations.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-slate-800/80">
+                      <p className="text-xs font-semibold text-slate-400 mb-2">Retrieved Sources:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {msg.citations.map((c, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => onSelectCitation(c)}
+                            className="bg-slate-950 border border-slate-800 hover:border-indigo-500/70 text-indigo-300 text-xs px-2.5 py-1 rounded-lg flex items-center space-x-1.5 transition-all cursor-pointer font-mono"
+                          >
+                            <FileCode2 className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>{c.file_path}</span>
+                            <span className="text-slate-500">L{c.start_line}-{c.end_line}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-slate-500 px-1">{msg.timestamp}</div>
               </div>
             </div>
           ))
         )}
 
-        {/* Loading Spinner */}
+        {/* Loading Indicator */}
         {loading && (
-          <div className="flex items-start space-x-2 text-xs text-slate-400 bg-slate-900 border border-slate-800 p-3 rounded-xl max-w-md animate-pulse">
-            <Loader2 className="w-4 h-4 animate-spin text-indigo-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-slate-300">Executing Hybrid Search & LLM RAG...</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Searching vector store + BM25 keyword index and reranking code chunks.</p>
-            </div>
+          <div className="flex items-center space-x-3 text-slate-400 text-sm p-4 bg-slate-900/60 border border-slate-800 rounded-2xl max-w-md">
+            <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+            <span>Analyzing repository chunks & generating answer...</span>
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error Banner */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs p-3 rounded-xl flex items-start space-x-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-rose-200">Query Failed</p>
-              <p className="text-[11px] mt-0.5">{error}</p>
-            </div>
+          <div className="p-4 bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-2xl text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Box Form */}
-      <div className="p-3 bg-slate-900 border-t border-slate-800">
-        <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+      {/* Input Form Bar */}
+      <div className="p-4 border-t border-slate-800 bg-slate-900/80">
+        <form onSubmit={handleSubmit} className="relative flex items-center max-w-4xl mx-auto">
           <input
             type="text"
             placeholder="Ask a question about authentication, database, routes, or specific functions..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={inputQuery}
+            onChange={(e) => setInputQuery(e.target.value)}
             disabled={loading}
-            className="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition-colors"
+            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 rounded-2xl pl-5 pr-14 py-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all shadow-inner"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+            disabled={loading || !inputQuery.trim()}
+            className="absolute right-2 bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-40 text-white p-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <Send className="w-4 h-4" />
           </button>
         </form>
       </div>

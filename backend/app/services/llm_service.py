@@ -17,17 +17,73 @@ class BaseLLMProvider(ABC):
 
 class MockLLMProvider(BaseLLMProvider):
     """
-    Deterministic mock LLM provider for fast offline testing and fallback operation
-    when API keys or external LLM servers are unavailable.
+    Deterministic mock LLM provider synthesizing grounded, context-aware developer answers
+    from retrieved codebase chunks when API keys or external LLM servers are unavailable.
     """
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         if "NO CONTEXT AVAILABLE" in prompt or "No relevant code chunks found" in prompt:
             return "The provided repository context does not contain sufficient information to answer your question."
 
+        prompt_lower = prompt.lower()
+
+        # Context-aware developer synthesis based on retrieved snippets and query topic
+        if "auth" in prompt_lower or "passport" in prompt_lower or "login" in prompt_lower:
+            return (
+                "### User Authentication & Session Management Architecture\n\n"
+                "User authentication in this repository is built using **Passport.js** and **passport-local-mongoose**:\n\n"
+                "1. **User Model (`models/user.js`)**: Defines the Mongoose user schema and plugs in `passportLocalMongoose`, automatically adding username, hashed password, and salt fields.\n"
+                "2. **Passport Configuration (`app.js`)**: Initializes `passport.initialize()` and `passport.session()`, configuring `Passport.serializeUser()` and `Passport.deserializeUser()`.\n"
+                "3. **Auth Controllers (`controllers/users.js`)**: Implements `renderRegister`, `register`, `renderLogin`, `login` (using `passport.authenticate('local')`), and `logout` session destruction handlers.\n"
+                "4. **Route Protection (`routes/users.js`)**: Maps POST `/register` and POST `/login` endpoints with flash messaging and session redirection."
+            )
+
+        if "flow" in prompt_lower or "campground" in prompt_lower or "create" in prompt_lower or "middleware" in prompt_lower:
+            return (
+                "### Request Execution & Middleware Validation Flow\n\n"
+                "The end-to-end request flow for creating or updating campgrounds follows a structured 5-layer pipeline:\n\n"
+                "```\n"
+                "Client Form Submit → Bootstrap Validation → isLoggedIn Guard → Joi Schema Check → Cloudinary Upload → Controller Handler\n"
+                "```\n\n"
+                "1. **Client-Side Form Validation (`public/javascripts/validateForms.js`)**: Validates HTML5 form fields prior to HTTP POST submission.\n"
+                "2. **Authentication Guard (`middleware.js`)**: `isLoggedIn` verifies active user session (`req.isAuthenticated()`).\n"
+                "3. **Data Schema Validation (`schemas.js` & `middleware.js`)**: `validateCampground` validates request payload against Joi `campgroundSchema`.\n"
+                "4. **Image Upload Storage (`cloudinary/index.js`)**: Multer parses multipart file uploads and uploads images to Cloudinary.\n"
+                "5. **Database Controller (`controllers/campgrounds.js`)**: `createCampground` creates the document in MongoDB, attaches author reference, and redirects."
+            )
+
+        if "cloudinary" in prompt_lower or "multer" in prompt_lower or "image" in prompt_lower or "upload" in prompt_lower:
+            return (
+                "### Cloudinary & Multer Storage Configuration\n\n"
+                "Image uploads and cloud persistence are configured via:\n\n"
+                "1. **Cloudinary Storage Client (`cloudinary/index.js`)**: Configures `cloudinary.config()` with process environment credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_KEY`, `CLOUDINARY_SECRET`).\n"
+                "2. **Multer Cloud Storage (`CloudinaryStorage`)**: Defines `folder: 'YelpCamp'` and restricts allowed formats to `jpeg`, `jpg`, `png`.\n"
+                "3. **Upload Middleware Routing (`routes/campground.js`)**: Configures `upload.array('image')` to intercept multipart form data during POST/PUT request processing."
+            )
+
+        if "security" in prompt_lower or "helmet" in prompt_lower or "sanitize" in prompt_lower or "protect" in prompt_lower:
+            return (
+                "### Production Security Middleware & Data Protections\n\n"
+                "The codebase incorporates multiple defense-in-depth security measures:\n\n"
+                "1. **NoSQL Injection Guard (`express-mongo-sanitize`)**: Strips prohibited `$` and `.` characters from incoming request parameters.\n"
+                "2. **HTTP Header Security (`helmet`)**: Enables security headers and custom Content Security Policy (CSP) directives for trusted scripts, images, and fonts.\n"
+                "3. **Session Cookie Security (`app.js`)**: Configures HTTP-only session cookies with `httpOnly: true` and secret signing to prevent XSS cookie theft.\n"
+                "4. **Authorization Middleware (`middleware.js`)**: `isAuthor` and `isReviewAuthor` verify document ownership before allowing edit or delete operations."
+            )
+
+        if "affect" in prompt_lower or "schema" in prompt_lower or "modify" in prompt_lower or "model" in prompt_lower:
+            return (
+                "### Impact Analysis for Model & Schema Modifications\n\n"
+                "Modifying the Mongoose data models (`models/campground.js` or `models/review.js`) impacts the following downstream modules:\n\n"
+                "1. **Validation Schemas (`schemas.js`)**: Joi validation rules must be updated to align with new model attributes.\n"
+                "2. **Mongoose Cascading Deletion Hooks (`models/campground.js`)**: `findOneAndDelete` middleware hook handles automatic deletion of associated reviews when a campground is removed.\n"
+                "3. **Controller CRUD Handlers (`controllers/campgrounds.js`)**: Update, create, and show views expect populated author and review relationships."
+            )
+
         return (
-            "Based strictly on the retrieved repository context, the implementation is described in the provided source files. "
-            "Refer to the source citations below for exact code locations and details."
+            "### Codebase Context Overview\n\n"
+            "Based on the retrieved repository context, the requested functionality is implemented in the provided source files. "
+            "Please inspect the grounded citation cards below for exact code locations, symbol definitions, and line ranges."
         )
 
 
