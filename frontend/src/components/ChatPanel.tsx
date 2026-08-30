@@ -10,6 +10,66 @@ interface ChatPanelProps {
   onSelectCitation: (citation: Citation) => void;
 }
 
+const parseInlineMarkdown = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold text-slate-100">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={i} className="bg-slate-950/90 border border-slate-800 text-cyan-300 px-1.5 py-0.5 rounded text-[13px] font-mono">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+};
+
+const renderChatContent = (content: string) => {
+  if (!content) return null;
+
+  // Strip leading markdown heading hashes (###, ####, #)
+  const cleanContent = content
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\n{3,}/g, '\n\n');
+
+  const lines = cleanContent.split('\n');
+
+  return (
+    <div className="space-y-1.5 font-sans text-sm leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Detect list items
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-2">
+              <span className="text-indigo-400 mt-1">•</span>
+              <span className="flex-1">{parseInlineMarkdown(trimmed.replace(/^[-*]\s+/, ''))}</span>
+            </div>
+          );
+        }
+
+        // Detect numbered items
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+        if (numMatch) {
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-1 pt-1">
+              <span className="font-bold text-indigo-400 text-xs mt-0.5">{numMatch[1]}.</span>
+              <span className="flex-1">{parseInlineMarkdown(numMatch[2])}</span>
+            </div>
+          );
+        }
+
+        return <p key={idx} className="text-slate-200">{parseInlineMarkdown(line)}</p>;
+      })}
+    </div>
+  );
+};
+
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   loading,
@@ -111,7 +171,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     </div>
                   )}
 
-                  <div className="whitespace-pre-wrap font-sans text-sm">{msg.content}</div>
+                  {msg.role === 'user' ? (
+                    <div className="whitespace-pre-wrap font-sans text-sm">{msg.content}</div>
+                  ) : (
+                    renderChatContent(msg.content)
+                  )}
 
                   {/* Citation Pills */}
                   {msg.citations && msg.citations.length > 0 && (

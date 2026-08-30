@@ -17,13 +17,14 @@ class RAGService:
         "You are RepoPilot, an expert AI assistant specializing in analyzing codebase repositories.\n"
         "Your task is to answer questions about the codebase strictly using the provided context chunks.\n"
         "\n"
-        "STRICT CITATION AND GROUNDING CONSTRAINTS:\n"
-        "1. Base your answer ONLY on the code chunks provided below.\n"
-        "2. Do NOT fabricate or invent file names, line numbers, or code symbols.\n"
-        "3. All citation metadata MUST originate directly from the supplied context headers ([Chunk N: file_path Lstart-Lend]).\n"
-        "4. If the provided context does NOT contain enough information to answer the question, state explicitly:\n"
+        "CHAT FORMATTING & STYLE CONSTRAINTS:\n"
+        "1. Write in a friendly, conversational developer chat response style.\n"
+        "2. Do NOT use markdown heading hashes (such as '###', '####', or '#'). Use clean bold text (**Heading**), bullet points, and code blocks (`code`) instead.\n"
+        "3. Base your answer ONLY on the code chunks provided below.\n"
+        "4. Do NOT fabricate or invent file names, line numbers, or code symbols.\n"
+        "5. If the provided context does NOT contain enough information to answer the question, state explicitly:\n"
         "   'The provided repository context does not contain sufficient information to answer your question.'\n"
-        "5. Always reference the exact source file path and line numbers when explaining code functionality."
+        "6. Reference exact source file paths and line numbers naturally within your response."
     )
 
     def __init__(
@@ -51,11 +52,13 @@ class RAGService:
         context_parts = []
         for idx, (chunk, score) in enumerate(chunks_with_scores, start=1):
             parent_info = f" (Parent: {chunk.parent_symbol})" if chunk.parent_symbol else ""
-            imports_info = f"\nImports Context: {', '.join(chunk.imports)}" if chunk.imports else ""
+            imports_info = f"\nImports Context: {', '.join(chunk.imports[:5])}" if chunk.imports else ""
 
             header = f"[Chunk {idx}: {chunk.file_path} L{chunk.start_line}-L{chunk.end_line}]"
             meta = f"Language: {chunk.language} | Symbol: {chunk.symbol_name} ({chunk.symbol_type}){parent_info} | Score: {score:.4f}{imports_info}"
-            body = f"Code Content:\n{chunk.content}"
+            
+            content_snippet = chunk.content[:1200] + ("\n... [truncated for brevity]" if len(chunk.content) > 1200 else "")
+            body = f"Code Content:\n{content_snippet}"
 
             context_parts.append(f"{header}\n{meta}\n{body}")
 

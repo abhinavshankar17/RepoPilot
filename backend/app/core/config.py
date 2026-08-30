@@ -22,15 +22,21 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "sentence-transformers"
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
 
-    LLM_PROVIDER: str = "mock"
-    LLM_MODEL_NAME: str = "gpt-4o-mini"
+    LLM_PROVIDER: str = "groq"
+    LLM_MODEL_NAME: str = "groq/compound"
     LLM_TEMPERATURE: float = 0.0
     LLM_MAX_TOKENS: int = 1024
     OPENAI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[
+            os.path.join(os.getcwd(), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env")
+        ],
         env_file_encoding="utf-8",
         extra="ignore"
     )

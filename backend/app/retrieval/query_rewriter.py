@@ -43,11 +43,12 @@ class QueryRewriter:
         if not history or not self.needs_rewriting(query, history):
             return query.strip()
 
-        # Format recent turns
+        # Format recent turns with bounded length to prevent payload overflow
         formatted_history = []
-        for msg in history:
+        for msg in history[-4:]:
             role = "User" if msg["role"] == "user" else "Assistant"
-            formatted_history.append(f"{role}: {msg['content']}")
+            content_snippet = msg['content'][:300] + ("..." if len(msg['content']) > 300 else "")
+            formatted_history.append(f"{role}: {content_snippet}")
 
         history_str = "\n".join(formatted_history)
 

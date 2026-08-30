@@ -21,28 +21,35 @@ class LanguageDetector:
     """Detects programming languages and configuration types based on file extensions and basenames."""
 
     EXTENSION_MAP: Dict[str, str] = {
-        ".py": "Python",
-        ".js": "JavaScript",
-        ".jsx": "JavaScript",
-        ".ts": "TypeScript",
-        ".tsx": "TypeScript",
-        ".java": "Java",
-        ".c": "C/C++",
-        ".cpp": "C/C++",
-        ".h": "C/C++",
-        ".hpp": "C/C++",
-        ".go": "Go",
-        ".rs": "Rust",
-        ".md": "Documentation",
-        ".json": "Configuration",
-        ".yaml": "Configuration",
-        ".yml": "Configuration",
-        ".toml": "Configuration",
+        # Python
+        ".py": "Python", ".pyw": "Python",
+        # JavaScript / TypeScript / Web
+        ".js": "JavaScript", ".jsx": "JavaScript", ".mjs": "JavaScript", ".cjs": "JavaScript",
+        ".ts": "TypeScript", ".tsx": "TypeScript",
+        ".html": "HTML", ".htm": "HTML", ".ejs": "HTML/EJS", ".pug": "HTML", ".hbs": "HTML",
+        ".css": "CSS", ".scss": "SCSS", ".sass": "SCSS", ".less": "CSS",
+        ".vue": "Vue", ".svelte": "Svelte",
+        # Systems & Core Languages
+        ".java": "Java", ".c": "C", ".cpp": "C++", ".cc": "C++", ".cxx": "C++", ".h": "C/C++", ".hpp": "C/C++",
+        ".go": "Go", ".rs": "Rust", ".rb": "Ruby", ".php": "PHP", ".cs": "C#",
+        ".swift": "Swift", ".kt": "Kotlin", ".kts": "Kotlin", ".scala": "Scala",
+        # Scripts & Shell
+        ".sh": "Shell", ".bash": "Shell", ".zsh": "Shell", ".ps1": "PowerShell", ".bat": "Batch", ".cmd": "Batch",
+        ".lua": "Lua", ".pl": "Perl", ".r": "R",
+        # Database & Schemas
+        ".sql": "SQL", ".prisma": "Prisma", ".graphql": "GraphQL", ".gql": "GraphQL",
+        # Config & Documentation
+        ".json": "Configuration", ".yaml": "Configuration", ".yml": "Configuration",
+        ".toml": "Configuration", ".xml": "Configuration", ".env": "Configuration",
+        ".properties": "Configuration", ".conf": "Configuration", ".ini": "Configuration",
+        ".md": "Documentation", ".markdown": "Documentation", ".txt": "Documentation",
     }
 
     SPECIAL_BASENAMES: Dict[str, str] = {
         "DOCKERFILE": "Configuration",
         "MAKEFILE": "Configuration",
+        "LICENSE": "Documentation",
+        "README": "Documentation",
     }
 
     @classmethod
@@ -53,13 +60,22 @@ class LanguageDetector:
         if basename in cls.SPECIAL_BASENAMES:
             return cls.SPECIAL_BASENAMES[basename]
         ext = os.path.splitext(file_path)[1].lower()
-        return cls.EXTENSION_MAP.get(ext)
+        return cls.EXTENSION_MAP.get(ext, "Plain Text")
 
 
 class FileScanner:
     """Scans and filters files in a repository directory while enforcing security limits."""
 
-    ALLOWED_EXTENSIONS: Set[str] = set(LanguageDetector.EXTENSION_MAP.keys())
+    BINARY_EXTENSIONS: Set[str] = {
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg", ".bmp", ".tiff",
+        ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2",
+        ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
+        ".exe", ".dll", ".so", ".dylib", ".bin", ".dat", ".out", ".app",
+        ".woff", ".woff2", ".ttf", ".eot", ".otf",
+        ".mp4", ".avi", ".mov", ".mp3", ".wav", ".flac", ".aac",
+        ".pyc", ".pyo", ".pyd", ".class", ".o", ".obj",
+        ".db", ".sqlite", ".sqlite3",
+    }
 
     IGNORE_DIRS: Set[str] = {
         ".git", "node_modules", "venv", ".venv", "__pycache__", "dist",
@@ -70,7 +86,7 @@ class FileScanner:
         "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock", "poetry.lock"
     }
 
-    MAX_FILE_SIZE_BYTES: int = 1 * 1024 * 1024  # 1 MB
+    MAX_FILE_SIZE_BYTES: int = 2 * 1024 * 1024  # 2 MB
 
     @classmethod
     def is_binary_file(cls, file_path: str) -> bool:
@@ -83,39 +99,11 @@ class FileScanner:
             return True
 
     @classmethod
-    def is_valid_github_url(cls, url: str) -> bool:
-        if not url or not isinstance(url, str):
-            return False
-        url_strip = url.strip()
-        # Require HTTPS protocol
-        if not url_strip.startswith("https://") and not url_strip.startswith("http://github.com"):
-            return False
-
-        # Reject internal IPs and SSRF targets
-        forbidden_targets = ["127.0.0.1", "localhost", "169.254.", "10.0.", "192.168."]
-        if any(target in url_strip.lower() for target in forbidden_targets):
-            return False
-
-        parsed = urlparse(url_strip)
-        if parsed.netloc.lower() not in ("github.com", "www.github.com"):
-            return False
-
-        # Validate URL path format: /org/repo or /org/repo.git
-        path_parts = [p for p in parsed.path.strip("/").split("/") if p]
-        if len(path_parts) < 2:
-            return False
-
-        return True
-
-    @classmethod
     def is_allowed_file(cls, file_name: str) -> bool:
-        upper_name = file_name.upper()
-        if upper_name.startswith("README") or upper_name.startswith("LICENSE"):
-            return True
-        if upper_name in {"DOCKERFILE", "MAKEFILE"}:
-            return True
         ext = os.path.splitext(file_name)[1].lower()
-        return ext in cls.ALLOWED_EXTENSIONS
+        if ext in cls.BINARY_EXTENSIONS:
+            return False
+        return True
 
     @classmethod
     def scan_directory(cls, repo_dir: str) -> Tuple[List[str], List[str]]:
@@ -190,8 +178,9 @@ class GitIngestionSource(BaseIngestionSource):
         """Validates if the URL is a safe, properly formatted GitHub URL."""
         if not url or not isinstance(url, str):
             return False
-        pattern = r"^https?://(www\.)?github\.com/[\w.-]+/[\w.-]+(\.git)?/?$"
-        return bool(re.match(pattern, url.strip()))
+        clean_url = url.strip()
+        pattern = r"^https?://(www\.)?github\.com/[\w.-]+/[\w.-]+.*$"
+        return bool(re.match(pattern, clean_url))
 
     def prepare_repository(self, target_dir: str) -> str:
         if not self.is_valid_github_url(self.repo_url):
