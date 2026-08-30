@@ -1,0 +1,71 @@
+{
+  "evaluation_timestamp": "2026-08-30T13:16:38Z",
+  "benchmark_dataset_size": 5,
+  "system_latencies": {
+    "indexing_time_ms": 3.71,
+    "embedding_time_ms": 3.62,
+    "retrieval_latency_ms": 0.0,
+    "reranking_latency_ms": 0.0,
+    "llm_latency_ms": 0.0,
+    "total_response_latency_ms": 0.0
+  },
+  "strategies": {
+    "vector_only": {
+      "retrieval_metrics": {
+        "Recall@1": 0.3667,
+        "Recall@5": 0.4167,
+        "Recall@10": 0.4167,
+        "Precision@5": 0.2,
+        "MRR": 0.85
+      },
+      "generation_metrics": {
+        "CitationAccuracy": 0.2,
+        "Faithfulness": 0.0417,
+        "AnswerRelevance": 0.04
+      },
+      "latency_metrics": {
+        "retrieval_latency_ms": 0.58,
+        "llm_latency_ms": 0.06,
+        "total_response_latency_ms": 0.65
+      }
+    },
+    "hybrid": {
+      "retrieval_metrics": {
+        "Recall@1": 0.3667,
+        "Recall@5": 0.4167,
+        "Recall@10": 0.4167,
+        "Precision@5": 0.2,
+        "MRR": 0.8667
+      },
+      "generation_metrics": {
+        "CitationAccuracy": 0.2,
+        "Faithfulness": 0.0417,
+        "AnswerRelevance": 0.04
+      },
+      "latency_metrics": {
+        "retrieval_latency_ms": 0.39,
+        "llm_latency_ms": 0.05,
+        "total_response_latency_ms": 0.45
+      }
+    },
+    "hybrid_rerank": {
+      "retrieval_metrics": {
+        "Recall@1": 0.2667,
+        "Recall@5": 0.4167,
+        "Recall@10": 0.4167,
+        "Precision@5": 0.2,
+        "MRR": 0.7333
+      },
+      "generation_metrics": {
+        "CitationAccuracy": 0.2,
+        "Faithfulness": 0.0417,
+        "AnswerRelevance": 0.04
+      },
+      "latency_metrics": {
+        "retrieval_latency_ms": 0.42,
+        "llm_latency_ms": 0.05,
+        "total_response_latency_ms": 0.48
+      }
+    }
+  }
+}

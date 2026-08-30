@@ -6,70 +6,32 @@ RepoPilot allows developers to provide any GitHub repository URL, automatically 
 
 ---
 
-## 🧠 Phase 12: Repository Intelligence
+## 🕸️ Phase 13: Repository Relationship Graph
 
-Phase 12 delivers 3 specialized developer intelligence services running on dedicated REST API endpoints:
+Phase 13 introduces a lightweight, in-memory directed relationship graph to complement FAISS vector embeddings with deterministic AST structural dependencies.
 
-### Feature 1 — Code Flow Analysis (`POST /repositories/{id}/flow`)
-Traces execution flows across codebase layers: `Route → Controller → Service → Repository → Database`.
-```json
-{
-  "flow_diagram": "Route → Controller → Service → Repository → Database",
-  "steps": [
-    {
-      "step_number": 1,
-      "layer": "Route",
-      "file_path": "src/routes/order.js",
-      "start_line": 10,
-      "end_line": 25,
-      "symbol": "createOrder"
-    }
-  ]
-}
+### Supported Edge Relationships
+- `IMPORTS`: File importing a module or source file
+- `CALLS`: Function or method invoking another symbol
+- `DEFINES`: File defining a class, function, or interface
+- `EXTENDS`: Class extending a parent class
+- `IMPLEMENTS`: Class implementing an interface
+- `USES`: Controller/Service utilizing a repository or database module
+- `ROUTES_TO`: API route mapping to a controller handler function
+
+```
+[auth.js] ──DEFINES──> [authenticateUser()] ──CALLS──> [verifyToken()]
+   │                                                        ▲
+   └──────────────IMPORTS───────────────────────────────────┘
 ```
 
 ---
 
-### Feature 2 — Impact Analysis (`POST /repositories/{id}/impact`)
-Identifies downstream modification impacts across imports, references, function calls, dependent modules, and API routes.
-```json
-{
-  "target": "User.js",
-  "summary": "Modifying 'User.js' could impact 4 downstream module(s)...",
-  "impacts": [
-    {
-      "category": "Imports",
-      "file_path": "src/controllers/userController.js",
-      "description": "File 'src/controllers/userController.js' explicitly imports 'User.js'."
-    }
-  ]
-}
-```
+## 🔒 Evidence Demarcation Policy
 
----
-
-### Feature 3 — Change Planning (`POST /repositories/{id}/change-plan`)
-Generates structured change recommendations for proposed features (e.g. `"Add Google OAuth"`) while strictly distinguishing **Verified Code Evidence** from **LLM Recommendations**.
-```json
-{
-  "proposed_feature": "I want to add Google OAuth",
-  "evidence_found": "Verified repository evidence:\n[1] File 'src/middleware/auth.js'...",
-  "recommendations": [
-    {
-      "file_path": "src/middleware/auth.js",
-      "reason": "Integrate Google OAuth handlers into existing auth implementation.",
-      "confidence": "High",
-      "is_new_file": false
-    },
-    {
-      "file_path": "src/config/oauth.js",
-      "reason": "Create new OAuth client configuration module.",
-      "confidence": "High",
-      "is_new_file": true
-    }
-  ]
-}
-```
+RepoPilot explicitly demarcates evidence sources in intelligence reports:
+- **Vector Evidence**: Semantic similarity candidates retrieved from FAISS vector indices.
+- **Relationship/Graph Evidence**: Deterministic AST dependency edges (`IMPORTS`, `CALLS`, `DEFINES`, `EXTENDS`, `IMPLEMENTS`, `USES`, `ROUTES_TO`).
 
 ---
 

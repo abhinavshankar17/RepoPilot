@@ -1,0 +1,42 @@
+[
+  {
+    "id": "eval-1",
+    "question": "Where is authentication implemented?",
+    "expected_files": ["src/middleware/auth.js", "src/middleware/auth.py", "auth.py", "README"],
+    "expected_symbols": ["authenticateUser", "authenticate_user"],
+    "expected_lines": [12, 31],
+    "type": "exact_code"
+  },
+  {
+    "id": "eval-2",
+    "question": "How does JWT verification work?",
+    "expected_files": ["src/middleware/jwt.js", "jwt.py", "README"],
+    "expected_symbols": ["verifyToken", "verify_token"],
+    "expected_lines": [1, 15],
+    "type": "semantic"
+  },
+  {
+    "id": "eval-3",
+    "question": "Where is the database connection initialized?",
+    "expected_files": ["src/db/connection.py", "db.py"],
+    "expected_symbols": ["init_db_connection", "connect_database"],
+    "expected_lines": [5, 25],
+    "type": "exact_code"
+  },
+  {
+    "id": "eval-4",
+    "question": "Which files handle user registration?",
+    "expected_files": ["src/controllers/user.js", "user.py"],
+    "expected_symbols": ["createUser", "register_user"],
+    "expected_lines": [10, 40],
+    "type": "semantic"
+  },
+  {
+    "id": "eval-5",
+    "question": "What happens when a user creates an order?",
+    "expected_files": ["src/services/order.py", "order.py"],
+    "expected_symbols": ["OrderService", "create_order"],
+    "expected_lines": [10, 45],
+    "type": "semantic"
+  }
+]
